@@ -100,6 +100,7 @@ class TrayIcon:
         self._status = "idle"
         self._status_lock = threading.Lock()
         self._control_panel = None
+        self._voice_window = None  # VoiceWindow reference (set via set_voice_window)
         self._agent_ref = None  # Reference to the Agent for mode switching
 
         # Lazy-import control panel to avoid circular imports at module level
@@ -117,6 +118,10 @@ class TrayIcon:
     def set_agent(self, agent) -> None:
         """Store a reference to the agent for menu actions."""
         self._agent_ref = agent
+
+    def set_voice_window(self, voice_window) -> None:
+        """Store a reference to the VoiceWindow so the tray menu can open it."""
+        self._voice_window = voice_window
 
     # ------------------------------------------------------------------
     # Menu actions
@@ -217,6 +222,11 @@ class TrayIcon:
                 self.overlay.close()
             except Exception:
                 pass
+        if self._voice_window is not None:
+            try:
+                self._voice_window.close()
+            except Exception:
+                pass
         if self._control_panel is not None:
             try:
                 self._control_panel.close()
@@ -236,6 +246,22 @@ class TrayIcon:
         """Show (or toggle) the control panel window."""
         if self._control_panel is not None:
             self._control_panel.toggle()
+
+    def _open_voice_window(self, icon, item) -> None:
+        """Open the voice control window from the tray menu."""
+        if self._voice_window is not None:
+            self._voice_window.show()
+        else:
+            # Launch a new --gui instance if no window exists
+            try:
+                subprocess.Popen(
+                    ["bash", "-c",
+                     f"cd {config.PROJECT_DIR} && .venv/bin/python3 main.py --gui"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            except Exception as exc:
+                logger.warning("Could not launch voice window: %s", exc)
 
     # ------------------------------------------------------------------
     # Menu building
@@ -281,6 +307,11 @@ class TrayIcon:
             pystray.MenuItem(
                 "Open Control Panel",
                 self._open_control_panel,
+            ),
+            # Voice Window toggle
+            pystray.MenuItem(
+                "Open Voice Window",
+                self._open_voice_window,
             ),
             pystray.Menu.SEPARATOR,
             # Actions

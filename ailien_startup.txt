@@ -1,0 +1,102 @@
+╔══════════════════════════════════════════════════════════════════╗
+║              AILIEN — Startup Commands                          ║
+║              AI computer control assistant                      ║
+╚══════════════════════════════════════════════════════════════════╝
+
+Project location: /home/alan/Desktop/my-project
+Launcher script: ./ailien
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUICK START
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd ~/Desktop/my-project
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TEXT MODE — Type commands in an interactive chat
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ./ailien --text
+
+  Commands while in text mode:
+    quit / exit / q     — Stop the agent
+    clear               — Reset conversation
+    /freebuff           — Minimal inline output style
+    /fancy              — Rich panel output style
+    /mute or /voice     — Toggle voice feedback
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WAKE WORD MODE — Say any activation phrase to wake the agent
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ./ailien --wake-word
+
+  Activation phrases (22 total):
+    hey ailien, ok ailien, ailien,
+    hey alien, ok alien, alien,
+    hey jarvis, ok jarvis, jarvis,
+    hello, hey, hi,
+    hello there, hey there, hi there,
+    what's up, sup, yo, howdy,
+    good morning, good afternoon, good evening
+
+  Voice commands while listening:
+    "screenshot"       — Take a screenshot
+    "status"           — Show system status
+    "go to sleep"      — Pause listening (say "wake up" to resume)
+    "quit"             — Shut down
+    "volume up/down"   — Adjust volume
+    "mute/unmute"      — Toggle audio
+    "play/pause/next"  — Media controls
+    "open firefox"     — Launch an app
+    "focus terminal"   — Switch to a window
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DAEMON MODE — Background mode with system tray icon
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ./ailien --daemon
+
+  Runs in the background with tray icon (👽).
+  Say "hey jarvis" or any activation phrase to wake it.
+  Right-click the tray icon for settings and quit.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OTHER MODES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ./ailien --voice         — Push-to-talk voice mode
+  ./ailien --freebuff      — Minimal inline text mode
+  ./ailien --serve         — HTTP API server (for Open WebUI)
+
+  ./ailien -c "hello"                        — Single command
+  ./ailien -c "open firefox" --save-conversation result.json
+
+  ./ailien --list-conversations              — List saved chats
+  ./ailien --conversation conv.json          — Load a conversation
+
+  ./ailien --help                            — Full options
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESKTOP SHORTCUTS (on Desktop)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  AILIEN.desktop          → Daemon mode (double-click to launch)
+  AILIEN-Text.desktop     → Text chat mode (opens terminal)
+  AILIEN-Voice.desktop    → Voice mode (opens terminal)
+  AILIEN-Server.desktop   → HTTP API server (opens terminal)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CUSTOM ACTIVATION PHRASES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Add to ~/Desktop/my-project/.env:
+    AGENT_WAKE_WORDS=hey alan, what's up alan, hello, alan
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RE-RUN SETUP (if needed)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd ~/Desktop/my-project && ./setup.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -32,6 +32,7 @@ from audio.wake_word import create_detector
 from llm.cloud_client import CloudLLMClient, get_cloud_client
 from safety.guard import SafetyGuard
 from utils.helpers import (
+    cancel_speech,
     fb_print_agent,
     fb_print_error,
     fb_print_info,
@@ -43,6 +44,7 @@ from utils.helpers import (
     print_tool_call,
     print_user_message,
     print_warning,
+    reset_speech,
     setup_crash_logging,
     setup_logging,
     speak,
@@ -1244,6 +1246,205 @@ class Agent:
             detector.stop()
             console.print("Goodbye!")
 
+    def run_window_mode(self, voice_window) -> None:
+        """Voice control window mode.
+
+        Opens the VoiceWindow GUI and processes commands (text or voice)
+        through the agent, sending results back to the window.
+        """
+        self._ensure_transcriber()
+        self._voice_window = voice_window
+        self._ww_detector = None
+
+        # Pre-load whisper model
+        try:
+            import numpy as np
+            self._set_status("thinking")
+            logger.info("Pre-loading whisper model...")
+            self.transcriber.transcribe(np.zeros(16000, dtype=np.float32))
+            logger.info("Whisper model loaded")
+        except Exception:
+            pass
+
+        # ------------------------------------------------------------------
+        # Wake word command processing
+        # ------------------------------------------------------------------
+        def _process_wake_word_command(command_text: str) -> None:
+            """Process a wake word command: if empty, record follow-up audio."""
+            if not command_text:
+                # Wake word said without a command — record follow-up
+                voice_window.append_message("system", "Wake word detected! Listening for command...")
+                try:
+                    self._set_status("listening")
+                    audio = self.recorder.record_until_silence()
+                    self._set_status("thinking")
+                except RuntimeError:
+                    voice_window.append_message("error", "Microphone unavailable.")
+                    self._set_status("idle")
+                    if self._ww_detector:
+                        self._ww_detector.resume()
+                    return
+                if audio.size == 0:
+                    voice_window.append_message("system", "No audio detected.")
+                    self._set_status("idle")
+                    if self._ww_detector:
+                        self._ww_detector.resume()
+                    return
+                voice_window.append_message("system", "Transcribing...")
+                command_text = self.transcriber.transcribe(audio)
+                if not command_text:
+                    voice_window.append_message("system", "Could not understand audio.")
+                    self._set_status("idle")
+                    if self._ww_detector:
+                        self._ww_detector.resume()
+                    return
+
+            # Send command through the same processing pipeline
+            voice_window.append_message("user", command_text)
+            self._set_status("thinking")
+
+            def _maybe_resume_detector():
+                """Resume the wake word detector only if voice is still active."""
+                if self._ww_detector and voice_window.voice_active:
+                    self._ww_detector.resume()
+
+            # Direct commands
+            direct = self._try_direct_voice_command(command_text)
+            if direct:
+                voice_window.append_message("agent", direct)
+                self._set_status("speaking")
+                speak(direct)
+                self._set_status("idle")
+                _maybe_resume_detector()
+                return
+
+            # Quick answers
+            quick = self._try_quick_answer(command_text)
+            if quick:
+                voice_window.append_message("agent", quick)
+                self._set_status("speaking")
+                speak(quick)
+                self._set_status("idle")
+                _maybe_resume_detector()
+                return
+
+            # Full LLM processing
+            def process():
+                response = self._chat_with_tools(command_text)
+                voice_window.append_message("agent", response)
+                self._set_status("speaking")
+                speak(response)
+                self._set_status("idle")
+                # Only resume if voice is still active (user hasn't paused)
+                _maybe_resume_detector()
+
+            threading.Thread(target=process, daemon=True).start()
+
+        # ------------------------------------------------------------------
+        # Create wake word detector
+        # ------------------------------------------------------------------
+        def _on_wake_word(command_text: str) -> None:
+            """Callback from wake word detector — pause detector and queue command."""
+            if self._ww_detector:
+                self._ww_detector.pause()
+            _process_wake_word_command(command_text)
+
+        self._ww_detector = create_detector(
+            transcriber=self.transcriber,
+            callback=_on_wake_word,
+            recorder=self.recorder,
+            chunk_max_duration=config.WAKE_WORD_CHUNK_MAX_DURATION,
+            chunk_silence_duration=config.WAKE_WORD_CHUNK_SILENCE_DURATION,
+        )
+
+        # ------------------------------------------------------------------
+        # Text command processing (from window text input)
+        # ------------------------------------------------------------------
+        def on_command(text: str) -> None:
+            """Callback when user submits text from the window."""
+            self._set_status("thinking")
+
+            # Pause wake word detector while processing text command
+            if self._ww_detector:
+                self._ww_detector.pause()
+
+            # Direct commands
+            direct = self._try_direct_voice_command(text)
+            if direct:
+                voice_window.append_message("agent", direct)
+                self._set_status("speaking")
+                speak(direct)
+                self._set_status("idle")
+                if self._ww_detector and voice_window.voice_active:
+                    self._ww_detector.resume()
+                return
+
+            # Quick answers
+            quick = self._try_quick_answer(text)
+            if quick:
+                voice_window.append_message("agent", quick)
+                self._set_status("speaking")
+                speak(quick)
+                self._set_status("idle")
+                if self._ww_detector and voice_window.voice_active:
+                    self._ww_detector.resume()
+                return
+
+            # Full LLM processing
+            def process():
+                response = self._chat_with_tools(text)
+                voice_window.append_message("agent", response)
+                self._set_status("speaking")
+                speak(response)
+                self._set_status("idle")
+                # Resume detector only if voice is still active
+                if self._ww_detector and voice_window.voice_active:
+                    self._ww_detector.resume()
+
+            threading.Thread(target=process, daemon=True).start()
+
+        def on_stop() -> None:
+            """Callback when user hits STOP to interrupt."""
+            logger.info("User interrupted via STOP button")
+            cancel_speech()
+            self._set_status("idle")
+
+        def on_voice_toggle(active: bool) -> None:
+            """Callback when user toggles voice listening via the LISTEN/PAUSE button.
+
+            Actually starts/pauses the wake word detector.
+            """
+            logger.info("Voice toggled %s by user", "ON" if active else "OFF")
+            if self._ww_detector is None:
+                voice_window.append_message("error", "Wake word detector not available.")
+                return
+
+            if active:
+                self._ww_detector.resume()
+                voice_window.append_message("system", f"Listening for wake phrases: {', '.join(config.AGENT_WAKE_WORDS[:6])}...")
+                self._set_status("listening")
+            else:
+                self._ww_detector.pause()
+                voice_window.append_message("system", "Voice detection paused. Click LISTEN to re-activate.")
+                self._set_status("idle")
+
+        # ------------------------------------------------------------------
+        # Wire up callbacks and start
+        # ------------------------------------------------------------------
+        voice_window.set_callbacks(
+            on_command=on_command,
+            on_stop=on_stop,
+            on_voice_toggle=on_voice_toggle,
+        )
+        voice_window.append_message("system", "AILIEN Voice Control ready. Type a command or click LISTEN to use voice.")
+        voice_window.show()
+
+        # Start voice detection by default
+        if self._ww_detector:
+            self._ww_detector.start()
+            voice_window.set_voice_active(True)  # Thread-safe: shows "PAUSE" button state
+            self._set_status("listening")
+
     def run_single_command(self, command: str) -> None:
         """Execute a single command and exit."""
         self._set_status("thinking")
@@ -1264,6 +1465,7 @@ def main() -> None:
     parser.add_argument("--command", "-c", type=str, help="Run a single command and exit")
     parser.add_argument("--no-voice-feedback", action="store_true", help="Disable TTS feedback")
     parser.add_argument("--no-overlay", action="store_true", help="Disable the GUI status overlay")
+    parser.add_argument("--gui", "-g", action="store_true", help="Open the Voice Control window (start/pause voice, stop mid-sentence, text input)")
     parser.add_argument("--freebuff", "-f", action="store_true", help="Start in minimal inline freebuff mode")
     parser.add_argument("--serve", "-s", action="store_true", help="Start the HTTP API server for Open WebUI integration")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="API server host (default 127.0.0.1)")
@@ -1327,7 +1529,19 @@ def main() -> None:
         _print_typing_banner(console)
 
     overlay = None
-    if not args.no_overlay:
+    voice_window = None
+
+    if args.gui:
+        # Use the VoiceWindow as the primary interface
+        try:
+            from gui.voice_window import VoiceWindow
+            voice_window = VoiceWindow()
+            # Give it a moment to start the tkinter thread
+            import time
+            time.sleep(0.2)
+        except Exception as exc:
+            logger.warning(f"Could not create VoiceWindow: {exc}")
+    if not args.gui and not args.no_overlay:
         try:
             from gui.overlay import StatusOverlay
             overlay = StatusOverlay()
@@ -1339,6 +1553,9 @@ def main() -> None:
     try:
         from gui.tray import TrayIcon
         tray = TrayIcon(overlay=overlay)
+        # Pass VoiceWindow reference so the tray menu can open it
+        if voice_window:
+            tray.set_voice_window(voice_window)
         tray.start()
     except Exception as exc:
         logger.warning(f"Could not create tray icon: {exc}")
@@ -1366,12 +1583,23 @@ def main() -> None:
                 agent.run_wake_word_mode()
             elif args.voice:
                 agent.run_voice_mode()
+            elif args.gui:
+                if voice_window:
+                    agent.run_window_mode(voice_window)
+                else:
+                    agent.run_text_mode()
             elif args.freebuff:
                 agent.run_freebuff_mode()
             else:
                 agent.run_text_mode()
         finally:
             notify("AILIEN", "Agent stopped")
+            # Stop wake word detector (releases microphone)
+            if hasattr(agent, '_ww_detector') and agent._ww_detector:
+                try:
+                    agent._ww_detector.stop()
+                except Exception:
+                    pass
             # Clean up PID file
             try:
                 pid_file = config.CACHE_DIR / "ailien_daemon.pid"
@@ -1383,12 +1611,34 @@ def main() -> None:
                 overlay.put_status("closed")
             if tray:
                 tray.stop()
+            if voice_window:
+                voice_window.close()
 
     # Save conversation after single command if requested
     if args.command and args.save_conversation:
         agent.save_conversation(args.save_conversation)
 
-    if overlay:
+    if args.gui and voice_window:
+        # VoiceWindow mode — tkinter runs in its own thread, just start agent
+        run_agent()
+        # Keep main thread alive while tkinter thread runs
+        try:
+            while True:
+                import time
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Shutting down...")
+            cancel_speech()
+            if hasattr(agent, '_ww_detector') and agent._ww_detector:
+                try:
+                    agent._ww_detector.stop()
+                except Exception:
+                    pass
+            if voice_window:
+                voice_window.close()
+            if tray:
+                tray.stop()
+    elif overlay:
         overlay.start_agent(run_agent)
         overlay.run()
     else:

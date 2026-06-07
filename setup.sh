@@ -149,41 +149,60 @@ for path, color in icons.items():
 ok "Icons generated."
 
 # ------------------------------------------------------------------
-# Desktop shortcuts
+# Desktop shortcuts + application menu entries
 # ------------------------------------------------------------------
-DESKTOP_DIR="$HOME/Desktop"
-if [ -d "$DESKTOP_DIR" ]; then
-    info "Creating desktop shortcuts..."
+create_shortcut() {
+    local name="$1"
+    local comment="$2"
+    local exec_cmd="$3"
+    local icon="$4"
+    local terminal="${5:-true}"
 
-    create_shortcut() {
-        local name="$1"
-        local comment="$2"
-        local exec_cmd="$3"
-        local icon="$4"
-        local file="$DESKTOP_DIR/$name.desktop"
+    # Install to Desktop (if directory exists)
+    if [ -d "$DESKTOP_DIR" ]; then
+        file="$DESKTOP_DIR/$name.desktop"
+        _write_desktop_entry "$file" "$name" "$comment" "$exec_cmd" "$icon" "$terminal"
+        chmod +x "$file"
+        if command -v gio &>/dev/null; then
+            gio set "$file" "metadata::trusted" true 2>/dev/null || true
+        fi
+        ok "Desktop shortcut: $file"
+    fi
 
-        cat > "$file" << EOF
+    # Install to application menu (whisker menu)
+    file="$APPS_DIR/$name.desktop"
+    _write_desktop_entry "$file" "$name" "$comment" "$exec_cmd" "$icon" "$terminal"
+    chmod +x "$file"
+    ok "App menu entry: $file"
+}
+
+_write_desktop_entry() {
+    local file="$1" name="$2" comment="$3" exec_cmd="$4" icon="$5" terminal="$6"
+    cat > "$file" << EOF
 [Desktop Entry]
+Version=1.0
 Name=$name
 Comment=$comment
-Exec=bash -c "cd $SCRIPT_DIR && ./ailien $exec_cmd"
-Type=Application
-Terminal=true
+Exec=$SCRIPT_DIR/ailien $exec_cmd
 Icon=$SCRIPT_DIR/$icon
+Type=Application
+Terminal=$terminal
 Categories=Utility;System;
 StartupNotify=true
 EOF
-        chmod +x "$file"
-        ok "Created shortcut: $file"
-    }
+}
 
-    create_shortcut "AILIEN" "AI computer control assistant — wake word mode" "--daemon" "icons/ailien_icon_128.png"
-    create_shortcut "AILIEN-Text" "AILIEN — terminal text chat mode" "--text" "icons/ailien_icon.png"
-    create_shortcut "AILIEN-Voice" "AILIEN — voice interactive mode" "--voice" "icons/ailien_icon.png"
-    create_shortcut "AILIEN-Server" "AILIEN — HTTP API server for Open WebUI" "--serve" "icons/ailien_icon.png"
-else
-    warn "Desktop directory not found at $DESKTOP_DIR. Skipping shortcuts."
-fi
+DESKTOP_DIR="$HOME/Desktop"
+APPS_DIR="$HOME/.local/share/applications"
+mkdir -p "$APPS_DIR"
+
+create_shortcut "AILIEN" "AI computer control assistant — background daemon with tray icon" "--daemon" "icons/ailien_icon_128.png" "false"
+create_shortcut "AILIEN-Text" "AILIEN — terminal text chat mode" "--text" "icons/ailien_icon.png"
+create_shortcut "AILIEN-Voice" "AILIEN — voice interactive mode" "--voice" "icons/ailien_icon.png"
+create_shortcut "AILIEN-Server" "AILIEN — HTTP API server for Open WebUI" "--serve" "icons/ailien_icon.png"
+
+# XFCE auto-detects new .desktop files — the entries will appear
+# in the whisker menu on next open. No panel restart needed.
 
 # ------------------------------------------------------------------
 # Done

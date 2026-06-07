@@ -104,6 +104,29 @@ def setup_crash_logging() -> None:
         threading.excepthook = _crash_thread_excepthook
 
 
+# TTS interruption support
+_STOP_TTS = threading.Event()
+_TTS_LOCK = threading.Lock()
+
+
+def cancel_speech() -> None:
+    """Signal all TTS engines to stop speaking immediately."""
+    global _STOP_TTS
+    _STOP_TTS.set()
+    # Force pyttsx3 to stop
+    if _TTS_ENGINE is not None:
+        try:
+            _TTS_ENGINE.stop()
+        except Exception:
+            pass
+
+
+def reset_speech() -> None:
+    """Reset the TTS stop signal for the next utterance."""
+    global _STOP_TTS
+    _STOP_TTS = threading.Event()
+
+
 # Cached TTS engines
 _TTS_ENGINE = None
 _EDGE_TTS_VOICE = "en-US-AriaNeural"
@@ -120,10 +143,17 @@ def _get_tts_engine():
 
 
 def _speak_edge_tts(text: str) -> None:
-    """Speak using edge-tts (natural-sounding voice) via temp MP3 + ffplay."""
+    """Speak using edge-tts (natural-sounding voice) via temp MP3 + ffplay.
+
+    Checks ``_STOP_TTS`` before and during playback to allow mid-sentence
+    interruption.
+    """
     import os
     import subprocess
     import tempfile
+
+    if _STOP_TTS.is_set():
+        return
 
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
         mp3_path = tmp.name
@@ -137,6 +167,8 @@ def _speak_edge_tts(text: str) -> None:
             stderr=subprocess.DEVNULL,
             timeout=30,
         )
+        if _STOP_TTS.is_set():
+            return
         # Play it
         subprocess.run(
             ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet", mp3_path],
@@ -146,8 +178,8 @@ def _speak_edge_tts(text: str) -> None:
             timeout=60,
         )
     except Exception:
-        # Fallback to pyttsx3 if edge-tts fails
-        _speak_pyttsx3(text)
+        if not _STOP_TTS.is_set():
+            _speak_pyttsx3(text)
     finally:
         try:
             os.unlink(mp3_path)
@@ -156,23 +188,41 @@ def _speak_edge_tts(text: str) -> None:
 
 
 def _speak_pyttsx3(text: str) -> None:
-    """Speak using the offline pyttsx3 engine (robotic voice)."""
+    """Speak using the offline pyttsx3 engine (robotic voice).
+
+    Checks ``_STOP_TTS`` between sentences to allow interruption.
+    """
     try:
         engine = _get_tts_engine()
-        engine.say(text)
-        engine.runAndWait()
+        if _STOP_TTS.is_set():
+            return
+        # Split into sentences and check stop signal between each
+        import re
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        for sentence in sentences:
+            if _STOP_TTS.is_set():
+                break
+            if sentence.strip():
+                engine.say(sentence)
+                engine.runAndWait()
     except Exception:
         pass
 
 
 def speak(text: str) -> None:
-    """Text-to-speech feedback. Routes to the configured engine."""
+    """Text-to-speech feedback. Routes to the configured engine.
+
+    Checks ``_STOP_TTS`` to allow mid-sentence interruption.
+    Resets the stop signal at the start of each call.
+    """
     if not config.AGENT_VOICE_FEEDBACK:
         return
-    if config.TTS_ENGINE == "edge":
-        _speak_edge_tts(text)
-    else:
-        _speak_pyttsx3(text)
+    reset_speech()
+    with _TTS_LOCK:
+        if config.TTS_ENGINE == "edge":
+            _speak_edge_tts(text)
+        else:
+            _speak_pyttsx3(text)
 
 
 _NOTIFY_ICON_PATH: Path | None = None

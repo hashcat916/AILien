@@ -58,7 +58,20 @@ WHISPER_COMPUTE_TYPE = os.getenv("WHISPER_COMPUTE_TYPE", "int8")  # int8, float1
 WHISPER_VAD_FILTER = os.getenv("WHISPER_VAD_FILTER", "false").lower() == "true"  # Silero VAD filtering (kept off — can be too aggressive)
 
 # Agent behavior
-AGENT_WAKE_WORDS = ["hey ailien", "ok ailien", "ailien", "hey alien", "ok alien", "alien"]
+_DEFAULT_WAKE_WORDS = [
+    "hey ailien", "ok ailien", "ailien",
+    "hey alien", "ok alien", "alien",
+    "hey jarvis", "ok jarvis", "jarvis",
+    "hello", "hey", "hi",
+    "hello there", "hey there", "hi there",
+    "what's up", "sup", "yo", "howdy",
+    "good morning", "good afternoon", "good evening",
+]
+_AGENT_WAKE_WORDS_ENV = os.getenv("AGENT_WAKE_WORDS", "")
+if _AGENT_WAKE_WORDS_ENV.strip():
+    AGENT_WAKE_WORDS = [w.strip().lower() for w in _AGENT_WAKE_WORDS_ENV.split(",") if w.strip()]
+else:
+    AGENT_WAKE_WORDS = list(_DEFAULT_WAKE_WORDS)
 AGENT_USE_WAKE_WORD = os.getenv("AGENT_USE_WAKE_WORD", "false").lower() == "true"
 AGENT_VOICE_FEEDBACK = os.getenv("AGENT_VOICE_FEEDBACK", "true").lower() == "true"
 AGENT_CONFIRM_DANGEROUS = os.getenv("AGENT_CONFIRM_DANGEROUS", "true").lower() == "true"
@@ -82,8 +95,9 @@ _PICO_SENS = os.getenv("PICOVOICE_SENSITIVITIES", "")
 PICOVOICE_SENSITIVITIES: list[float] = [float(x.strip()) for x in _PICO_SENS.split(",") if x.strip()] if _PICO_SENS else None
 
 # Wake word detection tuning
-WAKE_WORD_CHUNK_MAX_DURATION = float(os.getenv("WAKE_WORD_CHUNK_MAX_DURATION", "1.8"))  # Max seconds per audio chunk — shorter = faster wake word detection
+WAKE_WORD_CHUNK_MAX_DURATION = float(os.getenv("WAKE_WORD_CHUNK_MAX_DURATION", "1.0"))  # Max seconds per audio chunk — shorter = faster wake word detection
 WAKE_WORD_CHUNK_SILENCE_DURATION = float(os.getenv("WAKE_WORD_CHUNK_SILENCE_DURATION", "0.4"))  # Silence before stopping chunk
+VAD_AGGRESSIVENESS = int(os.getenv("VAD_AGGRESSIVENESS", "2"))  # WebRTC VAD: 0=least aggressive, 3=most aggressive
 
 # ---------------------------------------------------------------------------
 # Conversation memory
