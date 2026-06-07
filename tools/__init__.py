@@ -35,3 +35,16 @@ def get_tool(name: str) -> Callable[..., Any]:
 def list_tools() -> list[str]:
     """List all registered tool names."""
     return list(_TOOL_FUNCTIONS.keys())
+
+
+def load_generated() -> list[str]:
+    """Load all generated tools from the tools/generated/ directory.
+
+    Called once at startup so any previously created tools are available.
+    Returns a list of module names that were loaded.
+    """
+    try:
+        from brain.toolmaker import load_generated_tools
+        return load_generated_tools()
+    except Exception:
+        return []

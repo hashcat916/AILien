@@ -1,261 +1,442 @@
 # AILIEN 👽🖥️
 
-Control your computer with voice or text using AILIEN.
+Control your computer with voice or text using AILIEN — an AI assistant that can control your mouse, keyboard, browser, apps, files, screen, media, torrents, brightness, servers, domains, websites, and more.
+
+_Last updated: 2026-06-07 19:25_
 
 ## What it does
 
-- **Voice control**: Speak commands and the agent listens, transcribes locally with Whisper, then executes actions via a cloud LLM API.
-- **Text control**: Type commands in an interactive chat interface.
-- **PC automation**: Mouse, keyboard, screenshots, app launching, file management, shell commands, and more.
-- **Cloud-powered brain**: Uses an OpenAI-compatible API (xAI, Groq, OpenAI, etc.) for reasoning and tool calling.
-- **Local speech**: Whisper runs locally for privacy — your voice never leaves your machine.
-
-> **Local version preserved**: The original fully-local Ollama-based agent is backed up in `local_agent_backup/` for offline use.
-
-## Requirements
-
-- Python 3.10+
-- Linux (tested on Ubuntu/Debian). Some features work on macOS/Windows with minor tweaks.
-- A microphone (for voice mode)
-- An **API key** (free tier available at https://console.groq.com/keys for Groq, or https://console.x.ai/ for xAI)
-- Optional: [Ollama](https://ollama.com/) for offline fallback or local vision
+- **Voice control**: Speak commands (push-to-talk or wake-word "Hey Jarvis")
+- **Text control**: Type commands in an interactive chat
+- **PC automation**: 157+ tools — mouse, keyboard, screenshots, browser control, app launching, file management, shell commands, media playback, brightness control, torrent downloads, code verification, notes, email, reminders, timers, scheduled automation, system monitoring, server diagnostics, domain research, website scaffolding, tool creation, web learning
+- **Self-improving**: Can create its own tools at runtime and learn from the web
+- **Cloud-powered brain**: Uses xAI Grok (OpenAI-compatible API)
+- **Local speech**: Whisper runs locally — your voice never leaves your machine
 
 ## Quick Start
 
-### 1. Get a Groq API key
+### 1. Get an API key
 
-Sign up free at https://console.groq.com/keys and copy your API key.
+**xAI (recommended)**: https://console.x.ai/ — sign up and copy your API key.
 
 ### 2. Set your API key
 
 ```bash
-export GROQ_API_KEY="gsk_..."
+# Option A: Environment variable
+export XAI_API_KEY="xai-..."
+
+# Option B: .env file (auto-loaded)
+echo "XAI_API_KEY=xai-..." > .env
 ```
 
-Or create a `.env` file in the project root:
-```
-GROQ_API_KEY=gsk_...
-```
-
-### 3. Install (one command)
+### 3. Install
 
 ```bash
 chmod +x setup.sh && ./setup.sh
 ```
 
-This creates a virtual environment, installs all dependencies, generates icons, and creates desktop shortcuts.
+### 4. Run
 
-Or manually:
 ```bash
-pip install -r requirements.txt
+cd ~/Desktop/my-project
+./ailien --text
 ```
 
-> **Hardware note**: Speech recognition (Whisper) still runs locally. On constrained hardware:
-> - Use `tiny` Whisper model (default) for faster transcription
-> - `easyocr` requires PyTorch which is heavy — if you don't need OCR, remove `easyocr` from `requirements.txt`
+## Modes
 
-### 4. Run the agent
+| Command | Mode |
+|---------|------|
+| `./ailien --text` | Type commands in terminal |
+| `./ailien --gui` | GUI window with text + voice toggle |
+| `./ailien --voice` | Push-to-talk (press Enter, speak) |
+| `./ailien --wake-word` | Always listening — say "Hey Jarvis" |
+| `./ailien --freebuff` | Minimal inline terminal |
+| `./ailien --daemon` | Background tray icon |
+| `./ailien -c "command"` | Single command and exit |
+| `./ailien --serve` | HTTP API server (Open WebUI compatible) |
 
-**Text mode** (default):
-```bash
-python main.py
+## All 157 Tools
+
+### Mouse
+
+  `mouse_move`
+  `mouse_click`
+  `mouse_scroll`
+  `mouse_drag`
+  `get_mouse_position`
+
+### Keyboard
+
+  `type_text`
+  `press_key`
+  `clipboard_set`
+  `clipboard_get`
+
+### Screen
+
+  `take_screenshot`
+  `read_screen_text`
+
+### Apps
+
+  `launch_app`
+  `list_running_apps`
+  `kill_process`
+  `find_process`
+
+### Files
+
+  `list_directory`
+  `read_file`
+  `find_file`
+  `open_file`
+
+### System
+
+  `system_info`
+  `get_active_window`
+  `set_volume`
+  `media_play_pause`
+  `media_next`
+  `media_previous`
+  `volume_up`
+  `volume_down`
+  `mute_volume`
+  `unmute_volume`
+  `minimize_window`
+  `maximize_window`
+  `restore_window`
+  `focus_window`
+
+### Browser
+
+  `open_url`
+  `browser_navigate`
+  `browser_find`
+  `browser_new_tab`
+  `browser_close_tab`
+  `browser_go_back`
+  `browser_go_forward`
+  `browser_refresh`
+  `browser_switch_tab`
+  `get_webpage_text`
+
+### Browser Extras
+
+  `browser_get_info`
+  `browser_search`
+  `browser_scroll`
+  `browser_click_link`
+  `browser_fill_form`
+
+### Browser Extras
+
+
+### Media
+
+  `play_media`
+  `list_media`
+
+### Display
+
+  `set_brightness`
+  `brightness_up`
+  `brightness_down`
+  `get_brightness`
+
+### Productivity
+
+  `calculate`
+  `translate`
+  `weather`
+  `clipboard_history`
+
+### Reminder
+
+  `set_reminder`
+  `set_timer`
+  `list_reminders`
+  `cancel_reminder`
+
+### Automation
+
+  `add_automation`
+  `list_automations`
+  `remove_automation`
+  `pause_automation`
+  `resume_automation`
+  `pause_all_automations`
+  `resume_all_automations`
+
+### Feature Toggle
+
+  `toggle_proactive_monitoring`
+  `toggle_automation`
+  `get_feature_status`
+
+### Notes
+
+  `take_note`
+  `list_notes`
+  `read_note`
+  `search_notes`
+  `delete_note`
+
+### Email
+
+  `compose_email`
+
+### Code
+
+  `check_python_syntax`
+  `run_project_tests`
+  `format_python`
+  `self_verify`
+
+### Website
+
+  `serve_directory`
+  `stop_server`
+  `list_servers`
+  `scaffold_website`
+
+### Server
+
+  `ping_host`
+  `dns_lookup`
+  `check_port`
+  `trace_route`
+  `http_check`
+
+### Domain
+
+  `check_domain`
+  `domain_whois`
+  `suggest_domains`
+
+### Gaming
+
+  `detect_gaming_setup`
+  `list_games`
+  `launch_game`
+  `configure_gaming`
+  `check_gaming_setup`
+  `install_gaming_tool`
+
+### Reasoning
+
+  `think`
+  `create_plan`
+  `list_plans`
+  `complete_step`
+  `self_review`
+  `run_command`
+  `suggest_next_steps`
+
+### Agent Browser
+
+  `search_capabilities`
+  `install_capability`
+  `list_available_capabilities`
+  `find_missing_capability`
+
+### Course
+
+  `build_course`
+  `generate_book`
+  `list_courses`
+  `read_lesson`
+  `find_tutorials`
+
+### Learn
+
+  `learn_from_web`
+  `learn_from_reddit`
+  `learn_from_youtube`
+  `recall`
+  `list_learned_topics`
+  `forget_topic`
+
+### Project
+
+  `save_preference`
+  `get_preferences`
+  `remove_preference`
+  `project_analyze`
+
+### Utility
+
+  `generate_password`
+  `pick_color`
+  `set_alarm`
+  `cancel_alarm`
+  `list_alarms`
+  `log_expense`
+  `query_expenses`
+  `export_expenses`
+  `organize_directory`
+
+### Lifestyle
+
+  `track_package`
+  `find_recipes`
+  `start_weather_alerts`
+  `stop_weather_alerts`
+  `pdf_merge`
+  `pdf_split`
+  `pdf_extract_text`
+  `git_status`
+  `git_commit`
+  `git_push`
+  `git_pull`
+  `git_log`
+
+### Documentation
+
+  `update_documentation`
+  `get_documentation_status`
+
+### Shell
+
+  `run_shell`
+
+### Other
+
+  `add_torrent`
+  `create_tool`
+  `list_created_tools`
+  `remove_created_tool`
+  `torrent_pause`
+  `torrent_resume`
+  `torrent_status`
+
+## Create Your Own Tools
+
+AILIEN can create new tools at runtime using `create_tool`:
 ```
-
-**Voice mode**:
-```bash
-python main.py --voice
+create_tool(name="my_tool", description="Does something",
+  params='{"arg": {"type": "string"}}',
+  required='["arg"]',
+  code="from tools import tool\n...")
 ```
+The tool is validated (syntax + safety), saved to `tools/generated/`, and registered immediately — no restart needed.
 
-**Wake-word mode** (continuously listens for "Hey AILIEN"):
-```bash
-python main.py --wake-word
-```
+## Learn From the Web
 
-**Single command**:
-```bash
-python main.py -c "Open https://github.com"
-```
-
-**API server** (for Open WebUI):
-```bash
-python main.py --serve
-```
-
-**With conversation memory**:
-```bash
-python main.py --conversation my_chat.json    # Load previous conversation
-python main.py --list-conversations             # List saved chats
-python main.py -c "hello" --save-conversation result.json
-```
-
-## Available Commands
-
-While in text mode, type:
-- `quit` / `exit` / `q` — stop the agent
-- `clear` — reset conversation history
-
-## Tools the Agent Can Use
-
-| Category | Tools |
-|----------|-------|
-| **Mouse** | `mouse_move`, `mouse_click`, `mouse_scroll`, `mouse_drag`, `get_mouse_position` |
-| **Keyboard** | `type_text`, `press_key`, `clipboard_get`, `clipboard_set` |
-| **Screen** | `take_screenshot`, `read_screen_text` (OCR) |
-| **Apps** | `launch_app`, `list_running_apps`, `kill_process`, `find_process` |
-| **Files** | `list_directory`, `read_file`, `find_file`, `open_file` |
-| **Shell** | `run_shell` |
-| **System** | `system_info`, `get_active_window`, `set_volume` |
-| **Browser** | `open_url`, `browser_navigate`, `browser_find`, `browser_new_tab`, `browser_close_tab`, `browser_go_back`, `browser_go_forward`, `browser_refresh`, `browser_switch_tab`, `get_webpage_text` |
+AILIEN can research topics and remember them:
+- `learn_from_web` — fetch a URL or search the web, extract content, save to knowledge base
+- `learn_from_reddit` — save hot posts from any subreddit
+- `learn_from_youtube` — search and save video results
+- `recall` — search your memory for previously learned topics
+- `list_learned_topics` — see everything you've learned
 
 ## Safety
 
-The agent includes a safety guard that:
-- Requires **user confirmation** for destructive actions (deleting files, killing processes, risky shell commands, `sudo`, etc.)
-- Blocks obviously dangerous commands (`rm -rf /`, `mkfs`, etc.)
-- Prevents path traversal in file operations
-- Blocks reading sensitive system files (`/etc/shadow`, `/proc`, etc.)
-
-## System Tray Icon
-
-A cute alien system tray icon appears when the agent starts. Right-click it for a context menu with:
-
-- **Live status** — shows what the agent is doing (Idle, Listening, Thinking, Speaking)
-- **Voice feedback** toggle — turn TTS on/off
-- **Confirm dangerous actions** toggle — disable confirmation prompts (not recommended)
-- **Show / Hide overlay** — toggle the floating status window
-- **Open log file** — opens the agent log in your default text editor
-- **Quit** — gracefully shuts down the agent
-
-The alien icon also changes color to match the agent's state:
-- 🟢 Green — listening
-- 🟡 Yellow — thinking
-- 🔵 Blue — speaking
-- ⬜ Gray — idle
-
-> **Note**: The tray icon uses `pystray`. On some Linux desktops you may need to whitelist the app in your panel's tray settings for the icon to appear.
-
-## Desktop Notifications 👽
-
-The agent shows a desktop toast when it starts (`"Agent is running 👽"`) and when it stops (`"Agent stopped"`). These use your system's native notification daemon via D-Bus for best integration.
-
-## Configuration
-
-Set environment variables or edit `config.py`:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CLOUD_API_KEY` | *(required)* | Your API key (xAI, Groq, OpenAI, etc.) |
-| `CLOUD_MODEL` | `grok-4.3` | Cloud model for reasoning + tool calling |
-| `CLOUD_BASE_URL` | `https://api.x.ai/v1` | API endpoint URL |
-| `VISION_MODEL` | `grok-2-vision-1212` | Vision model for screenshot analysis |
-| `WHISPER_MODEL` | `tiny` | Whisper model size (`tiny`, `base`, `small`, `medium`, `large-v3`) |
-| `WHISPER_VAD_FILTER` | `false` | Enable Silero VAD filtering (disabled by default — was too aggressive) |
-| `AGENT_VOICE_FEEDBACK` | `true` | Enable text-to-speech responses |
-| `AGENT_CONFIRM_DANGEROUS` | `true` | Require confirmation for risky actions |
-| `WAKE_WORD_CHUNK_MAX_DURATION` | `4.0` | Max seconds per wake-word listen chunk |
-| `WAKE_WORD_CHUNK_SILENCE_DURATION` | `0.8` | Seconds of silence to end a chunk |
-| `OLLAMA_MODEL` | `llama3.2:1b` | Fallback local model (optional) |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama fallback URL |
-| `CONVERSATION_AUTO_SAVE` | `true` | Auto-save conversation history after each response |
-| `CONVERSATION_MAX_HISTORY` | `24` | Max messages kept in context window |
-| `SKILLS_ENABLED` | `true` | Enable the skill/plugin system |
-| `TTS_ENGINE` | `edge` | TTS engine: `edge` (natural, internet) or `pyttsx3` (offline, robotic) |
+- **User confirmation** required for destructive actions (delete, kill, risky shell)
+- **Blocks** obviously dangerous commands (`rm -rf /`, `mkfs`, etc.)
+- **Prevents path traversal** in file operations
+- **Blocks** reading sensitive system files (`/etc/shadow`, `/proc`, etc.)
+- **Automation engine** blocks dangerous tools from running on schedules
+- **Tool creation** validates generated code — blocks dangerous imports and patterns
 
 ## Project Structure
 
 ```
 .
-├── main.py                 # Entry point and agent loop
-├── config.py               # Settings and constants
-├── requirements.txt        # Python dependencies
-├── audio/
-│   ├── recorder.py         # Microphone recording with silence detection
-│   └── transcriber.py      # Local Whisper speech-to-text
-├── gui/
-│   ├── overlay.py          # Floating status overlay window
-│   └── tray.py             # System tray icon with alien and settings menu
-├── llm/
-│   └── cloud_client.py     # Cloud LLM client (xAI/Groq) with tool calling
-├── tools/
-│   ├── mouse.py            # Mouse control
-│   ├── keyboard.py         # Keyboard control
-│   ├── screen.py           # Screenshots and OCR
-│   ├── apps.py             # Application management
-│   ├── browser.py           # Browser automation (open URLs, tab control, page text)
-│   ├── files.py            # File operations
-│   ├── shell.py            # Shell command execution
-│   └── system.py           # System info and control
-├── safety/
-│   └── guard.py            # Safety checks and confirmations
-└── utils/
-    └── helpers.py          # Logging, TTS, desktop notifications
+├── main.py                   # Entry point, agent loop, system prompt
+├── config.py                 # Settings (env vars, API keys, defaults)
+├── ailien                    # Launcher script (activates venv)
+├── setup.sh                  # One-command setup
+├── requirements.txt          # Python dependencies
+├── .env                      # API keys (you create this)
+│
+├── tools/                    # Tool functions
+│   ├── __init__.py           # Tool registry + @tool decorator
+│   ├── generated/            # User/AI-created tools (runtime)
+│   ├── mouse.py, keyboard.py, screen.py
+│   ├── apps.py, files.py, shell.py, system.py
+│   ├── browser.py, browser_extras.py
+│   ├── website_tools.py, server_tools.py, domain_tools.py
+│   ├── display_tools.py, media_tools.py, torrent_tools.py
+│   ├── productivity.py, code_tools.py, notes.py
+│   ├── email_tool.py, reminder_tools.py
+│   ├── automation_tools.py, feature_toggle.py
+│   ├── create_tool.py, learn_tools.py
+│   └── documentation_tools.py
+│
+├── brain/                    # Background engines
+│   ├── reminders.py          # Reminder/timer manager (persistent)
+│   ├── proactive.py          # System health monitor
+│   ├── automation.py         # Scheduled task engine
+│   ├── quick_answers.py      # Instant responses
+│   ├── youtube.py, reddit.py # Content fetchers
+│   ├── notifications.py      # Desktop notification mirror
+│   ├── knowledge.py          # Note/knowledge base
+│   ├── toolmaker.py          # Self-tool-creation engine
+│   └── learner.py            # Web learning engine
+│
+├── audio/                    # Recording, transcription, wake word
+├── gui/                      # VoiceWindow, overlay, tray icon
+├── llm/                      # API client
+├── safety/                   # Safety guard & confirmations
+├── skills/                   # User-defined skill plugins
+├── conversations/            # Saved chat history
+├── wake_words/               # Custom wake word models
+└── .cache/                   # Logs, automations, reminders, learner
 ```
 
-## New Features
+## Configuration
 
-### 🧠 Conversation Memory
-AILIEN can now save and load conversations. Chat history persists across restarts:
+Set via environment variables or `.env` file:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `XAI_API_KEY` | *(required)* | xAI API key |
+| `CLOUD_MODEL` | `grok-4.3` | LLM model for reasoning + tool calling |
+| `CLOUD_BASE_URL` | `https://api.x.ai/v1` | API endpoint |
+| `VISION_MODEL` | `grok-4.3` | Vision model for screenshot analysis |
+| `WHISPER_MODEL` | `tiny` | Whisper size |
+| `TTS_ENGINE` | `pyttsx3` | `pyttsx3` (offline) or `edge` (natural) |
+| `JARVIS_REMINDERS` | `true` | Enable reminder/timer system |
+| `JARVIS_PROACTIVE` | `true` | Enable battery/CPU monitoring |
+| `JARVIS_QUICK_ANSWERS` | `true` | Enable instant responses |
+| `CONVERSATION_AUTO_SAVE` | `true` | Auto-save chat history |
+| `SKILLS_ENABLED` | `true` | Enable skill plugins |
+| `AGENT_VOICE_FEEDBACK` | `true` | Text-to-speech on/off |
+| `WAKE_WORD_CHUNK_MAX_DURATION` | `1.0` | Max seconds per audio chunk |
+| `LOG_LEVEL` | `INFO` | Log level: DEBUG, INFO, WARNING |
+
+## Environment Variables Quick Reference
 
 ```bash
-# Auto-saves after every response (enabled by default)
-python main.py
+# Required: at least one API key
+export XAI_API_KEY="xai-..."
 
-# List saved conversations
-python main.py --list-conversations
-
-# Load a previous conversation to continue where you left off
-python main.py --conversation conversation_20250101_120000.json
-
-# Save a single-command response
-python main.py -c "check my disk space" --save-conversation disk_check.json
+# Optional overrides
+export CLOUD_MODEL="grok-4.3"
+export WHISPER_MODEL="tiny"
+export TTS_ENGINE="pyttsx3"
+export JARVIS_PROACTIVE="true"
+export JARVIS_REMINDERS="true"
+export AGENT_VOICE_FEEDBACK="true"
+export CONVERSATION_AUTO_SAVE="true"
 ```
 
-### 🧩 Skill/Plugin System
-Extend AILIEN with custom skills! Drop a Python file into `skills/` and it's automatically loaded:
+## Custom Wake Words
 
-```python
-# skills/weather.py
-from skills import Skill, tool
-
-class WeatherSkill(Skill):
-    name = "weather"
-    description = "Gets the weather"
-
-    @tool(description="Get weather for a city")
-    def get_weather(self, city: str) -> str:
-        return f"The weather in {city} is sunny, 72°F."
+Add to `.env` to customize wake phrases:
+```env
+AGENT_WAKE_WORDS=hey alan, what's up alan, hello alan
 ```
 
-Skills are discovered automatically — no configuration needed. See `skills/example_skill.py` for a template.
-
-### 🌊 Streaming API
-The API server now supports streaming (SSE) responses. Open WebUI and other tools get real-time word-by-word responses:
-
-```bash
-python main.py --serve
-# Then use with any OpenAI-compatible client with stream=true
-```
-
-### 🚀 One-Command Setup
-```bash
-chmod +x setup.sh && ./setup.sh
-```
-This creates the virtual environment, installs dependencies, generates icons, and creates desktop shortcuts.
-
-## Vision Support
-
-The agent sends screenshots to a **cloud vision model** (via Groq) which returns a detailed text description of the UI. This lets the agent "see" the screen before interacting with it.
-
-The default vision model is `llama-3.2-11b-vision-preview` on Groq. If vision is unavailable, the agent gracefully degrades to OCR (`read_screen_text`) or a plain screenshot note.
-
-> **Local fallback**: If you prefer fully-local vision, the `local_agent_backup/` directory contains the original Ollama-based vision setup.
+For Picovoice Porcupine (offline), see `wake_words/README.md`.
 
 ## Known Limitations
 
-- **Wayland**: Window detection (`get_active_window`) requires X11. It won't work on Wayland without `xdotool` compatibility.
-- **OCR**: `easyocr` is heavy and slow to initialize on first use.
-- **Internet required**: The brain runs in the cloud — you need an internet connection. The local backup in `local_agent_backup/` works offline with Ollama.
-- **Groq vision**: Not all Groq models support vision; `llama-3.2-11b-vision-preview` is the current option.
+- **Wayland**: Window detection requires X11. `get_active_window` needs `xdotool`.
+- **Transmission**: Torrent tools need `transmission-cli` + `transmission-daemon`.
+- **Internet required**: The brain runs in the cloud.
+- **Linux**: Tested on Ubuntu/Debian. Some features need X11.
 
 ## License
 

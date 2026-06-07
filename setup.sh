@@ -8,10 +8,10 @@
 #   3. Installs system dependencies (Linux)
 #   4. Generates application icons
 #   5. Creates desktop shortcuts
+#   6. Installs optional torrent support (transmission-cli)
 #
 # Usage:
-#   chmod +x setup.sh
-#   ./setup.sh
+#   chmod +x setup.sh && ./setup.sh
 #
 # Or for a quiet install (non-interactive):
 #   ./setup.sh --quiet
@@ -87,6 +87,24 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     else
         ok "All system packages present."
     fi
+
+    # Optional: install transmission-cli for torrent tools
+    if command -v transmission-remote &>/dev/null; then
+        ok "transmission-cli already installed."
+    else
+        info "Installing transmission-cli for torrent support..."
+        if [[ $EUID -eq 0 ]]; then
+            apt-get install -y -qq transmission-cli transmission-daemon 2>/dev/null
+        else
+            sudo apt-get install -y -qq transmission-cli transmission-daemon 2>/dev/null
+        fi
+        if command -v transmission-remote &>/dev/null; then
+            ok "transmission-cli installed."
+        else
+            warn "transmission-cli not installed (apt may have been locked)."
+            warn "Run: sudo apt-get install transmission-cli transmission-daemon"
+        fi
+    fi
 fi
 
 # ------------------------------------------------------------------
@@ -119,7 +137,7 @@ else
 fi
 
 # ------------------------------------------------------------------
-# Create skills and conversations directories
+# Create essential directories
 # ------------------------------------------------------------------
 mkdir -p "$SCRIPT_DIR/skills" "$SCRIPT_DIR/conversations"
 ok "Skills and conversations directories ready."
@@ -133,19 +151,12 @@ import sys
 sys.path.insert(0, '$SCRIPT_DIR')
 from generate_icon import generate_alien_icon
 
-# Generate icons for desktop shortcuts
-icons = {
-    '$SCRIPT_DIR/icons/ailien_icon.png': None,
-    '$SCRIPT_DIR/icons/ailien_icon_128.png': None,
-}
-
-for path, color in icons.items():
-    size = 128 if '128' in path else 64
+for name, size in [('ailien_icon.png', 64), ('ailien_icon_128.png', 128)]:
     icon = generate_alien_icon(256)
     final = icon.resize((size, size), __import__('PIL').Image.LANCZOS)
-    final.save(path)
-    print(f'  Generated {path.split("/")[-1]}')
-"
+    final.save(f'icons/{name}')
+    print(f'  Generated {name}')
+" 2>/dev/null || info "Icon generation skipped (will use fallback)"
 ok "Icons generated."
 
 # ------------------------------------------------------------------
@@ -201,9 +212,6 @@ create_shortcut "AILIEN-Text" "AILIEN — terminal text chat mode" "--text" "ico
 create_shortcut "AILIEN-Voice" "AILIEN — voice interactive mode" "--voice" "icons/ailien_icon.png"
 create_shortcut "AILIEN-Server" "AILIEN — HTTP API server for Open WebUI" "--serve" "icons/ailien_icon.png"
 
-# XFCE auto-detects new .desktop files — the entries will appear
-# in the whisker menu on next open. No panel restart needed.
-
 # ------------------------------------------------------------------
 # Done
 # ------------------------------------------------------------------
@@ -214,21 +222,24 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo "  Quick start:"
 echo "    cd $SCRIPT_DIR"
-echo "    source .venv/bin/activate"
-echo "    export GROQ_API_KEY=\"gsk_...\""
-echo "    python main.py"
+echo "    ./ailien --text"
+echo ""
+echo "  First, set your API key in a .env file:"
+echo "    echo \"XAI_API_KEY=xai-...\" > .env"
+echo "    # or: export XAI_API_KEY=\"xai-...\""
 echo ""
 echo "  Or use desktop shortcuts:"
-echo "    AILIEN         → Wake word mode (default)"
-echo "    AILIEN-Text    → Chat via text"
-echo "    AILIEN-Voice   → Push-to-talk voice"
-echo "    AILIEN-Server  → HTTP API for Open WebUI"
+echo "    AILIEN           → Background daemon (tray icon)"
+echo "    AILIEN-Text      → Text chat"
+echo "    AILIEN-Voice     → Push-to-talk voice"
+echo "    AILIEN-Server    → HTTP API for Open WebUI"
 echo ""
-echo "  New features:"
-echo "    python main.py --conversation conv.json   → Load a conversation"
-echo "    python main.py --list-conversations        → List saved chats"
-echo "    python main.py -c \"open firefox\" --save-conversation result.json"
+echo "  Try these commands:"
+echo "    ./ailien -c \"what's my system status?\""
+echo "    ./ailien -c \"open firefox and go to youtube.com\""
+echo "    ./ailien -c \"set a timer for 30 seconds\""
+echo "    ./ailien -c \"remind me in 5 minutes to check email\""
+echo "    ./ailien -c \"what's the weather?\""
 echo ""
-echo "  Skills: Add .py files to skills/ to extend AILIEN!"
-echo "  See skills/example_skill.py for a template."
+echo "  87 tools available. Type anything — AILIEN figures out the right tool."
 echo ""

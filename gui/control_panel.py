@@ -1,9 +1,7 @@
-"""Floating control panel for AILIEN — toggles, status, and quick actions.
+"""Floating control panel — compact settings and status for AILIEN.
 
-A compact always-on-top tkinter window that shows the agent's current status
-and provides toggle switches for settings, plus quick-action buttons.
-
-Opened by left-clicking the system tray icon.
+Opened from the tray icon. Shows agent status, toggles for features,
+and quick action buttons. Thread-safe via queue.
 """
 
 import logging
@@ -11,7 +9,6 @@ import os
 import subprocess
 import threading
 from queue import Empty, Queue
-from typing import Any
 
 import config
 
@@ -19,319 +16,216 @@ logger = logging.getLogger("agent")
 
 try:
     import tkinter as tk
-    from tkinter import ttk
 except ImportError:
-    tk = None  # type: ignore
+    tk = None
+
+BG_DARK      = "#0d1117"
+BG_MEDIUM    = "#161b22"
+BG_LIGHT     = "#21262d"
+FG_PRIMARY   = "#e6edf3"
+FG_SECONDARY = "#8b949e"
+FG_ACCENT    = "#58a6ff"
+FG_GREEN     = "#3fb950"
+FG_RED       = "#f85149"
+BORDER       = "#30363d"
 
 STATUS_COLORS = {
-    "idle": "#808080",
-    "listening": "#4ade80",
-    "thinking": "#fbbf24",
-    "speaking": "#60a5fa",
-    "closed": "#808080",
+    "idle":      "#8b949e",
+    "listening": "#3fb950",
+    "thinking":  "#d29922",
+    "speaking":  "#58a6ff",
+    "closed":    "#8b949e",
 }
-
 STATUS_LABELS = {
-    "idle": "Idle",
-    "listening": "Listening...",
-    "thinking": "Thinking...",
-    "speaking": "Speaking...",
+    "idle": "Idle", "listening": "Listening...",
+    "thinking": "Thinking...", "speaking": "Speaking...",
     "closed": "",
 }
 
 
 class ControlPanel:
-    """Floating control panel with status, toggles, and quick actions.
-
-    Runs in its own tkinter thread.  Thread-safe status updates are sent
-    via ``put_status()``.  Call ``toggle()`` to show/hide the window.
-    """
+    """Compact floating control panel."""
 
     def __init__(self) -> None:
         if tk is None:
-            raise RuntimeError("tkinter is not available")
-
+            raise RuntimeError("tkinter not available")
         self._queue: Queue[str] = Queue()
         self._status = "idle"
         self._visible = False
         self._root: tk.Tk | None = None
-
-        # Widget references
-        self._indicator: tk.Canvas | None = None
-        self._indicator_dot: int | None = None
+        self._dot: int | None = None
         self._status_label: tk.Label | None = None
-        self._voice_var: tk.BooleanVar | None = None
-        self._proactive_var: tk.BooleanVar | None = None
-        self._confirm_var: tk.BooleanVar | None = None
-
-        self._start_thread()
-
-    # ------------------------------------------------------------------
-    # Thread management
-    # ------------------------------------------------------------------
-
-    def _start_thread(self) -> None:
-        """Build the UI in a background thread."""
+        self._canvas: tk.Canvas | None = None
+        self._voice_var = tk.BooleanVar(value=config.AGENT_VOICE_FEEDBACK)
+        self._proactive_var = tk.BooleanVar(value=config.JARVIS_PROACTIVE)
+        self._confirm_var = tk.BooleanVar(value=config.AGENT_CONFIRM_DANGEROUS)
         self._thread = threading.Thread(target=self._build_ui, daemon=True)
         self._thread.start()
 
     def _build_ui(self) -> None:
-        """Create the tkinter window (runs in background thread)."""
         self._root = tk.Tk()
         self._root.title("AILIEN Control Panel")
-        self._root.configure(bg="#1e1e1e")
-        self._root.overrideredirect(False)  # normal window with title bar
+        self._root.configure(bg=BG_DARK)
         self._root.attributes("-topmost", True)
         self._root.resizable(False, False)
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        # Position near top-right of screen
         sw = self._root.winfo_screenwidth()
-        self._root.geometry(f"320x380+{sw - 360}+40")
+        self._root.geometry(f"300x340+{sw - 340}+60")
 
-        # ---- widgets ---------------------------------------------------
-        self._build_header()
-        self._build_status_section()
-        self._build_separator()
-        self._build_toggles()
-        self._build_separator()
-        self._build_actions()
-        self._build_separator()
-        self._build_footer()
+        # Title
+        header = tk.Label(self._root, text="👽  AILIEN",
+                          font=("Segoe UI", 15, "bold"),
+                          fg=FG_GREEN, bg=BG_DARK)
+        header.pack(fill="x", padx=16, pady=(14, 4))
 
-        # Start hidden
+        # Status
+        row = tk.Frame(self._root, bg=BG_DARK)
+        row.pack(fill="x", padx=16, pady=(4, 8))
+
+        self._canvas = tk.Canvas(row, width=18, height=18,
+                                 bg=BG_DARK, highlightthickness=0)
+        self._canvas.pack(side="left", padx=(0, 8))
+        self._dot = self._canvas.create_oval(2, 2, 16, 16,
+                                              fill=STATUS_COLORS["idle"],
+                                              outline="")
+
+        self._status_label = tk.Label(row, text="Idle",
+                                      font=("Segoe UI", 11),
+                                      fg=FG_PRIMARY, bg=BG_DARK)
+        self._status_label.pack(side="left")
+
+        # Separator
+        tk.Frame(self._root, height=1, bg=BORDER).pack(fill="x", padx=16, pady=6)
+
+        # Toggles
+        toggles_frame = tk.Frame(self._root, bg=BG_DARK)
+        toggles_frame.pack(fill="x", padx=16, pady=4)
+
+        for label, var in [
+            ("Voice Feedback", self._voice_var),
+            ("Proactive Alerts", self._proactive_var),
+            ("Confirm Dangerous", self._confirm_var),
+        ]:
+            row = tk.Frame(toggles_frame, bg=BG_DARK)
+            row.pack(fill="x", pady=3)
+
+            tk.Label(row, text=label, font=("Segoe UI", 10),
+                     fg=FG_PRIMARY, bg=BG_DARK, anchor="w"
+                     ).pack(side="left", fill="x", expand=True)
+
+            self._make_toggle(row, var)
+
+        # Separator
+        tk.Frame(self._root, height=1, bg=BORDER).pack(fill="x", padx=16, pady=6)
+
+        # Actions
+        actions_frame = tk.Frame(self._root, bg=BG_DARK)
+        actions_frame.pack(fill="x", padx=16, pady=4)
+
+        for text, cmd in [
+            ("🖥  Open Terminal Chat", self._open_terminal),
+            ("📁  Knowledge Folder", self._open_knowledge),
+            ("📄  Open Log File", self._open_log),
+        ]:
+            btn = tk.Label(actions_frame, text=text,
+                           font=("Segoe UI", 10),
+                           fg=FG_PRIMARY, bg=BG_LIGHT,
+                           cursor="hand2", padx=12, pady=6,
+                           anchor="w")
+            btn.pack(fill="x", pady=2)
+            btn.bind("<Button-1>", lambda e, c=cmd: c())
+            btn.bind("<Enter>", lambda e, b=btn: b.configure(bg=BG_MEDIUM))
+            btn.bind("<Leave>", lambda e, b=btn: b.configure(bg=BG_LIGHT))
+
+        # Quit button
+        tk.Frame(self._root, height=1, bg=BORDER).pack(fill="x", padx=16, pady=6)
+
+        quit_btn = tk.Label(self._root, text="✕  Quit AILIEN",
+                            font=("Segoe UI", 10, "bold"),
+                            fg=FG_RED, bg="#1a1a1a",
+                            cursor="hand2", padx=12, pady=8,
+                            anchor="center")
+        quit_btn.pack(fill="x", padx=16, pady=(4, 12))
+        quit_btn.bind("<Button-1>", lambda e: self._quit())
+        quit_btn.bind("<Enter>", lambda e: quit_btn.configure(bg="#2a1515"))
+        quit_btn.bind("<Leave>", lambda e: quit_btn.configure(bg="#1a1a1a"))
+
         self._root.withdraw()
-
-        # ---- poll queue ------------------------------------------------
         self._poll_queue()
         self._root.mainloop()
 
-    # ------------------------------------------------------------------
-    # UI sections
-    # ------------------------------------------------------------------
+    def _make_toggle(self, parent, var):
+        canvas = tk.Canvas(parent, width=30, height=16,
+                           bg=BG_DARK, highlightthickness=0, cursor="hand2")
+        canvas.pack(side="right")
 
-    def _build_header(self) -> None:
-        """Top header with icon and title."""
-        frame = tk.Frame(self._root, bg="#1e1e1e")
-        frame.pack(fill="x", padx=16, pady=(12, 4))
+        def redraw():
+            canvas.delete("all")
+            on = var.get()
+            bg = "#3fb950" if on else "#30363d"
+            knob = 15 if on else 3
+            canvas.create_oval(0, 0, 30, 16, fill=bg, outline="")
+            canvas.create_oval(knob, 1, knob + 13, 15,
+                               fill="#ffffff", outline="")
 
-        # Alien emoji + title
-        title = tk.Label(
-            frame,
-            text="👽  AILIEN",
-            font=("Helvetica", 16, "bold"),
-            fg="#4ade80",
-            bg="#1e1e1e",
-        )
-        title.pack(side="left")
+        def click(e):
+            var.set(not var.get())
+            self._on_toggle(var)
+            redraw()
 
-    def _build_status_section(self) -> None:
-        """Status indicator circle + text."""
-        frame = tk.Frame(self._root, bg="#1e1e1e")
-        frame.pack(fill="x", padx=16, pady=(4, 8))
+        canvas.bind("<Button-1>", click)
+        redraw()
 
-        # Colored dot
-        self._indicator = tk.Canvas(frame, width=20, height=20, bg="#1e1e1e", highlightthickness=0)
-        self._indicator.pack(side="left", padx=(0, 8))
-        self._indicator_dot = self._indicator.create_oval(
-            2, 2, 18, 18, fill=STATUS_COLORS["idle"], outline=""
-        )
-
-        # Status text
-        self._status_label = tk.Label(
-            frame,
-            text="Idle",
-            font=("Helvetica", 12),
-            fg="#cccccc",
-            bg="#1e1e1e",
-        )
-        self._status_label.pack(side="left")
-
-    def _build_separator(self) -> None:
-        """Thin horizontal line."""
-        sep = tk.Frame(self._root, height=1, bg="#333333")
-        sep.pack(fill="x", padx=16, pady=4)
-
-    def _build_toggles(self) -> None:
-        """Toggle switches for settings."""
-        frame = tk.Frame(self._root, bg="#1e1e1e")
-        frame.pack(fill="x", padx=16, pady=4)
-
-        toggles = [
-            ("Voice Feedback", "AGENT_VOICE_FEEDBACK"),
-            ("Proactive Alerts", "JARVIS_PROACTIVE"),
-            ("Confirm Dangerous", "AGENT_CONFIRM_DANGEROUS"),
-        ]
-
-        self._voice_var = tk.BooleanVar(value=config.AGENT_VOICE_FEEDBACK)
-        self._proactive_var = tk.BooleanVar(value=config.JARVIS_PROACTIVE)
-        self._confirm_var = tk.BooleanVar(value=config.AGENT_CONFIRM_DANGEROUS)
-        vars_map = {
-            "AGENT_VOICE_FEEDBACK": self._voice_var,
-            "JARVIS_PROACTIVE": self._proactive_var,
-            "AGENT_CONFIRM_DANGEROUS": self._confirm_var,
+    def _on_toggle(self, var):
+        mapping = {
+            id(self._voice_var): ("AGENT_VOICE_FEEDBACK", self._voice_var),
+            id(self._proactive_var): ("JARVIS_PROACTIVE", self._proactive_var),
+            id(self._confirm_var): ("AGENT_CONFIRM_DANGEROUS", self._confirm_var),
         }
+        for vid, (attr, v) in mapping.items():
+            if id(var) == vid:
+                setattr(config, attr, v.get())
+                logger.info("Control panel: %s → %s", attr, v.get())
+                break
 
-        for i, (label, attr) in enumerate(toggles):
-            row = tk.Frame(frame, bg="#1e1e1e")
-            row.pack(fill="x", pady=2)
-
-            tk.Label(
-                row,
-                text=label,
-                font=("Helvetica", 11),
-                fg="#eeeeee",
-                bg="#1e1e1e",
-                anchor="w",
-            ).pack(side="left", fill="x", expand=True)
-
-            var = vars_map[attr]
-            cb = tk.Checkbutton(
-                row,
-                variable=var,
-                bg="#1e1e1e",
-                fg="#4ade80",
-                selectcolor="#2a2a2a",
-                activebackground="#1e1e1e",
-                activeforeground="#4ade80",
-                command=lambda a=attr, v=var: self._on_toggle(a, v),
-            )
-            cb.pack(side="right")
-
-    def _build_actions(self) -> None:
-        """Action buttons."""
-        frame = tk.Frame(self._root, bg="#1e1e1e")
-        frame.pack(fill="x", padx=16, pady=4)
-
-        actions = [
-            ("🖥  Open Terminal Chat", self._open_terminal),
-            ("📁  Open Knowledge Folder", self._open_knowledge),
-            ("📄  Open Log File", self._open_log),
-        ]
-
-        for text, cmd in actions:
-            btn = tk.Button(
-                frame,
-                text=text,
-                command=cmd,
-                font=("Helvetica", 10),
-                fg="#ffffff",
-                bg="#333333",
-                activebackground="#444444",
-                activeforeground="#ffffff",
-                relief="flat",
-                bd=0,
-                cursor="hand2",
-                padx=12,
-                pady=6,
-                anchor="w",
-            )
-            btn.pack(fill="x", pady=2)
-            # Hover effect
-            btn.bind("<Enter>", lambda e, b=btn: b.configure(bg="#444444"))
-            btn.bind("<Leave>", lambda e, b=btn: b.configure(bg="#333333"))
-
-    def _build_footer(self) -> None:
-        """Bottom section with Quit button."""
-        frame = tk.Frame(self._root, bg="#1e1e1e")
-        frame.pack(fill="x", padx=16, pady=(4, 12))
-
-        quit_btn = tk.Button(
-            frame,
-            text="✕  Quit AILIEN",
-            command=self._quit,
-            font=("Helvetica", 10, "bold"),
-            fg="#ef4444",
-            bg="#2a2a2a",
-            activebackground="#3a2020",
-            activeforeground="#ef4444",
-            relief="flat",
-            bd=0,
-            cursor="hand2",
-            padx=12,
-            pady=6,
-        )
-        quit_btn.pack(fill="x")
-        quit_btn.bind("<Enter>", lambda e: quit_btn.configure(bg="#3a2020"))
-        quit_btn.bind("<Leave>", lambda e: quit_btn.configure(bg="#2a2a2a"))
-
-    # ------------------------------------------------------------------
-    # Callbacks
-    # ------------------------------------------------------------------
-
-    def _on_toggle(self, attr: str, var: tk.BooleanVar) -> None:
-        """Update config when a toggle is clicked."""
-        value = var.get()
-        setattr(config, attr, value)
-        logger.info("Control panel: %s set to %s", attr, value)
-
-    def _open_terminal(self) -> None:
-        """Open a terminal with AILIEN in text mode."""
+    def _open_terminal(self):
         try:
-            terminal_cmd = os.environ.get(
-                "TERMINAL",
-                os.environ.get("TERM", "x-terminal-emulator"),
-            )
-            subprocess.Popen(
-                [terminal_cmd, "-e",
-                 f"bash -c 'cd {config.PROJECT_DIR} && .venv/bin/python3 main.py --text; exec bash'"],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            term = os.environ.get("TERMINAL", os.environ.get("TERM", "x-terminal-emulator"))
+            subprocess.Popen([term, "-e",
+                             f"bash -c 'cd {config.PROJECT_DIR} && .venv/bin/python3 main.py --text; exec bash'"],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as exc:
-            logger.warning("Could not open terminal: %s", exc)
+            logger.warning("Open terminal failed: %s", exc)
 
-    def _open_knowledge(self) -> None:
-        """Open the knowledge folder."""
+    def _open_knowledge(self):
         try:
-            knowledge_dir = config.PROJECT_DIR / "knowledge"
-            knowledge_dir.mkdir(parents=True, exist_ok=True)
-            subprocess.Popen(
-                ["xdg-open", str(knowledge_dir)],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            d = config.PROJECT_DIR / "knowledge"
+            d.mkdir(parents=True, exist_ok=True)
+            subprocess.Popen(["xdg-open", str(d)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as exc:
-            logger.warning("Could not open knowledge folder: %s", exc)
+            logger.warning("Open knowledge failed: %s", exc)
 
-    def _open_log(self) -> None:
-        """Open the log file."""
+    def _open_log(self):
         try:
-            subprocess.Popen(
-                ["xdg-open", str(config.LOG_FILE.resolve())],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            subprocess.Popen(["xdg-open", str(config.LOG_FILE.resolve())],
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as exc:
-            logger.warning("Could not open log file: %s", exc)
+            logger.warning("Open log failed: %s", exc)
 
-    def _quit(self) -> None:
-        """Quit the entire application."""
-        logger.info("Quit requested from control panel")
+    def _quit(self):
+        logger.info("Quit from control panel")
         from utils.helpers import notify
         notify("AILIEN", "Agent stopped")
         self.close()
-        # Signal all threads to stop via the root window
-        if self._root is not None:
-            try:
-                self._root.quit()
-            except Exception:
-                pass
 
-    def _on_close(self) -> None:
-        """Hide instead of close when window X is clicked."""
+    def _on_close(self):
         self.hide()
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def put_status(self, status: str) -> None:
-        """Thread-safe status update from the agent thread."""
         self._queue.put(status)
 
     def toggle(self) -> None:
-        """Show or hide the control panel."""
         if self._root is None:
             return
         if self._visible:
@@ -340,34 +234,28 @@ class ControlPanel:
             self.show()
 
     def show(self) -> None:
-        """Show the control panel."""
-        if self._root is None:
-            return
-        self._visible = True
-        self._root.deiconify()
-        self._root.lift()
-        self._root.focus_force()
+        if self._root:
+            self._visible = True
+            self._root.deiconify()
+            self._root.lift()
+            self._root.focus_force()
 
     def hide(self) -> None:
-        """Hide the control panel."""
-        if self._root is None:
-            return
-        self._visible = False
-        self._root.withdraw()
+        if self._root:
+            self._visible = False
+            self._root.withdraw()
 
     @property
     def is_visible(self) -> bool:
         return self._visible
 
     def _update_status(self, status: str) -> None:
-        """Update the status display."""
         self._status = status
-        color = STATUS_COLORS.get(status, "#808080")
+        color = STATUS_COLORS.get(status, "#8b949e")
         text = STATUS_LABELS.get(status, status.capitalize())
-
-        if self._indicator and self._indicator_dot is not None:
+        if self._canvas and self._dot is not None:
             try:
-                self._indicator.itemconfig(self._indicator_dot, fill=color)
+                self._canvas.itemconfig(self._dot, fill=color)
             except Exception:
                 pass
         if self._status_label:
@@ -377,27 +265,23 @@ class ControlPanel:
                 pass
 
     def _poll_queue(self) -> None:
-        """Poll the status update queue from the tkinter main loop."""
         if self._root is None:
             return
         try:
             while True:
-                status = self._queue.get_nowait()
-                self._update_status(status)
+                self._update_status(self._queue.get_nowait())
         except Empty:
             pass
-        if self._root is not None:
+        if self._root:
             try:
                 self._root.after(100, self._poll_queue)
             except Exception:
                 pass
 
     def close(self) -> None:
-        """Destroy the window and clean up."""
-        if self._root is None:
-            return
-        try:
-            self._root.destroy()
-        except Exception:
-            pass
-        self._root = None
+        if self._root:
+            try:
+                self._root.destroy()
+            except Exception:
+                pass
+            self._root = None

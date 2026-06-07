@@ -76,13 +76,42 @@ def set_volume(level: int) -> str:
         return f"Failed to set volume: {e}"
 
 
+def _send_key_to_window(window_class: str, key: str) -> bool:
+    """Send a keyboard key to a specific window by class using xdotool.
+
+    This avoids the problem of keystrokes going to the wrong (focused)
+    window — the key is delivered directly to the target window.
+    """
+    import subprocess
+    try:
+        # Find the window ID
+        result = subprocess.run(
+            ["xdotool", "search", "--class", window_class],
+            capture_output=True, text=True, timeout=5,
+        )
+        wid = result.stdout.strip().split("\n")[0] if result.stdout.strip() else None
+        if not wid:
+            return False
+        # Send the key directly to that window (doesn't steal focus)
+        subprocess.run(
+            ["xdotool", "key", "--window", wid, key],
+            capture_output=True, timeout=5,
+        )
+        return True
+    except Exception:
+        return False
+
+
 @tool(
     name="media_play_pause",
-    description="Toggle play/pause for the current media (works for YouTube, Spotify, and most media players).",
+    description="Toggle play/pause for media playing in Firefox (YouTube, etc.).",
     params={},
     required=[],
 )
 def media_play_pause() -> str:
+    if _send_key_to_window("firefox", "XF86AudioPlay"):
+        return "Toggled play/pause."
+    # Fallback: try pyautogui
     try:
         import pyautogui
         pyautogui.press("playpause")
@@ -93,11 +122,13 @@ def media_play_pause() -> str:
 
 @tool(
     name="media_next",
-    description="Skip to the next track in the current media player.",
+    description="Skip to the next track in Firefox.",
     params={},
     required=[],
 )
 def media_next() -> str:
+    if _send_key_to_window("firefox", "XF86AudioNext"):
+        return "Skipped to next track."
     try:
         import pyautogui
         pyautogui.press("nexttrack")
@@ -108,11 +139,13 @@ def media_next() -> str:
 
 @tool(
     name="media_previous",
-    description="Go back to the previous track in the current media player.",
+    description="Go back to the previous track in Firefox.",
     params={},
     required=[],
 )
 def media_previous() -> str:
+    if _send_key_to_window("firefox", "XF86AudioPrev"):
+        return "Went back to previous track."
     try:
         import pyautogui
         pyautogui.press("prevtrack")

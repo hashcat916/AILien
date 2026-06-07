@@ -13,19 +13,42 @@ from pathlib import Path
 from queue import Empty, Queue
 
 from rich.console import Console
-from rich.panel import Panel
-from rich.text import Text
 
 import config
 import tools
 import tools.apps
 import tools.browser
+import tools.browser_extras
+import tools.code_tools
+import tools.email_tool
 import tools.files
 import tools.keyboard
 import tools.mouse
+import tools.notes
+import tools.productivity
 import tools.screen
 import tools.shell
 import tools.system
+import tools.display_tools
+import tools.media_tools
+import tools.torrent_tools
+import tools.reminder_tools
+import tools.automation_tools
+import tools.feature_toggle
+import tools.website_tools
+import tools.server_tools
+import tools.domain_tools
+import tools.create_tool
+import tools.learn_tools
+import tools.documentation_tools
+import tools.project_tools
+import tools.utility_tools
+import tools.lifestyle_tools
+import tools.reasoning_tools
+import tools.agent_browser_tools
+import tools.course_tools
+import tools.gaming_tools
+from brain.conversation_learner import auto_learn_from_response, auto_learn_from_tool
 from audio.recorder import AudioRecorder
 from audio.transcriber import WhisperTranscriber
 from audio.wake_word import create_detector
@@ -38,12 +61,24 @@ from utils.helpers import (
     fb_print_info,
     fb_print_tool,
     fb_print_user,
+    fancy_print_agent,
+    fancy_print_user,
+    fancy_print_tool,
     notify,
-    print_agent_message,
+    print_header,
+    print_user,
+    print_agent,
+    print_tool,
+    print_status,
+    print_success,
     print_error,
-    print_tool_call,
-    print_user_message,
     print_warning,
+    print_info,
+    print_divider,
+    print_panel,
+    show_thinking,
+    hide_thinking,
+    ask_confirmation,
     reset_speech,
     setup_crash_logging,
     setup_logging,
@@ -51,77 +86,254 @@ from utils.helpers import (
 )
 
 
-
 console = Console()
 logger = setup_logging()
 setup_crash_logging()
 
 
-AILIEN_BANNER = r"""
-        .===============================.
-        |                               |
-        |      👽   A  I  L  I  E  N   |
-        |                               |
-        `===============================`
-"""
-
-
-def _print_typing_banner(console: Console, delay: float = 0.08) -> None:
-    """Print the AILIEN banner line-by-line with a rainbow color gradient
-    and a slight typing-animation delay between each line."""
-    lines = AILIEN_BANNER.strip("\n").splitlines()
-    colors = [
-        "bright_red",
-        "bright_yellow",
-        "bright_green",
-        "bright_cyan",
-        "bright_blue",
-        "bright_magenta",
-    ]
-    for i, line in enumerate(lines):
-        color = colors[i % len(colors)]
-        console.print(Text(line, style=color))
-        time.sleep(delay)
+def _print_banner() -> None:
+    """Print a clean, professional startup banner."""
+    print_header("AILIEN", " — AI Computer Control")
 
 SYSTEM_PROMPT = """You are AILIEN. You help the user control their computer by calling tools.
 
 Available tools include:
-- mouse_move, mouse_click, mouse_scroll, mouse_drag, get_mouse_position
-- type_text, press_key, clipboard_get, clipboard_set
-- take_screenshot, read_screen_text
-- launch_app, list_running_apps, kill_process, find_process
-- list_directory, read_file, find_file, open_file
-- run_shell
-- system_info, get_active_window, set_volume
-- open_url, browser_navigate, browser_find, browser_new_tab, browser_close_tab, browser_go_back, browser_go_forward, browser_refresh, browser_switch_tab, get_webpage_text
 
-When given a task:
-1. Think step by step.
-2. Use tools to observe the current state (active window, process list, etc.).
-3. Use take_screenshot to see the screen and understand the UI before clicking or typing.
-4. Be precise with coordinates when interacting with UI elements.
-5. After completing actions, summarize what you did.
+=== MOUSE & KEYBOARD ===
+mouse_move, mouse_click, mouse_scroll, mouse_drag, get_mouse_position
+type_text, press_key, clipboard_get, clipboard_set
 
-PERSONALITY: You are like JARVIS from Iron Man — confident, capable, loyal, and professional with a touch of warmth. You're direct and efficient, but not cold. You can be witty when appropriate. You address the user as "sir" or "boss" occasionally. Use varied responses instead of the same phrases. You're proactive about pointing things out when relevant.
+=== SCREEN ===
+take_screenshot, read_screen_text
+
+=== APPS ===
+launch_app, list_running_apps, kill_process, find_process
+
+=== FILES ===
+list_directory, read_file, find_file, open_file
+
+=== SYSTEM ===
+system_info, get_active_window, set_volume
+
+=== BROWSER (Firefox) ===
+open_url — open a URL in the default browser
+browser_navigate — navigate Firefox to a URL (focuses browser, types in address bar)
+browser_search — search Google or Wikipedia (opens new tab)
+browser_get_info — get the current page title and URL
+browser_click_link — click a link on the page by its visible text
+browser_scroll — scroll the page up/down
+browser_fill_form — type into a form field by its label
+browser_find — search for text on the page
+browser_new_tab — open a new tab
+browser_close_tab — close the current tab
+browser_go_back — go to previous page
+browser_go_forward — go to next page
+browser_refresh — reload the page
+browser_switch_tab — switch to next/previous tab
+get_webpage_text — fetch a URL and extract readable text (no browser needed)
+
+=== LOCAL MEDIA ===
+play_media — search for and play a local movie, music file, or video by name
+list_media — list available media files in your Music, Videos, Movies folders
+
+=== DISPLAY ===
+set_brightness — set screen brightness to a percentage (0–100)
+brightness_up — increase brightness
+brightness_down — decrease brightness
+get_brightness — show current brightness
+
+=== TORRENTS (Transmission) ===
+add_torrent — download a torrent via magnet link or .torrent URL
+torrent_status — show status of all active torrents
+torrent_pause — pause a torrent by its ID
+torrent_resume — resume a paused torrent by its ID
+
+=== MEDIA ===
+media_play_pause — toggle play/pause in Firefox (YouTube, Spotify, etc.)
+media_next, media_previous
+
+=== PRODUCTIVITY ===
+calculate — do math (e.g. "2 + 2", "15 * 3.5", "2 ** 10")
+translate — translate text between languages (free, no API key)
+weather — get weather for any city (free, no API key)
+clipboard_history — show current clipboard content
+
+=== REMINDERS & TIMERS ===
+set_reminder — set a reminder that fires after a duration (minutes, hours, seconds)
+set_timer — set a countdown timer (use for 'timer for X seconds')
+list_reminders — list all pending reminders and timers
+cancel_reminder — cancel a reminder or timer by text or ID
+
+=== AUTOMATION ===
+add_automation — schedule a tool to run automatically on a schedule
+list_automations — list all scheduled automations with status
+remove_automation — remove an automation by ID or label
+pause_automation — pause a specific automation
+resume_automation — resume a paused automation
+pause_all_automations — pause ALL automations at once
+resume_all_automations — resume ALL automations at once
+
+=== FEATURE TOGGLES ===
+toggle_proactive_monitoring — turn system monitoring (battery, CPU) on/off
+toggle_automation — pause/resume all scheduled automations at once
+get_feature_status — check which background features are running
+
+=== NOTES (knowledge base) ===
+take_note — save a note with title and content (use for voice notes too!)
+list_notes — list all saved notes
+read_note — read a note by title
+search_notes — search note contents for keywords
+delete_note — delete a note
+
+=== EMAIL ===
+compose_email — open default email client with pre-filled draft (to, subject, body)
+
+=== CODE ===
+check_python_syntax — check a Python file for errors
+run_project_tests — run the project's unit tests
+format_python — format a Python file with Black
+
+=== WEBSITES ===
+serve_directory — start a local HTTP server to preview files in a directory
+stop_server — stop a running local HTTP server by port
+list_servers — list all active local HTTP servers
+scaffold_website — create a basic HTML/CSS/JS website scaffold with optional frameworks
+
+=== NETWORK & SERVERS ===
+ping_host — ping a host to check if it's reachable
+dns_lookup — look up DNS records (A, MX, NS, TXT, etc.)
+check_port — check if a network port is open on a host
+trace_route — trace the network route to a host
+http_check — check if an HTTP/HTTPS server is responding
+
+=== DOMAINS ===
+check_domain — check if a domain name is available for registration
+suggest_domains — suggest alternative domain names based on a keyword
+domain_whois — get detailed WHOIS registration information
+
+=== CREATE YOUR OWN TOOLS ===
+create_tool — create a new custom tool at runtime (provide name, description, params, and Python source code with @tool decorator)
+list_created_tools — list all tools that have been created dynamically
+remove_created_tool — remove a previously created custom tool
+
+=== LEARN FROM THE WEB ===
+learn_from_web — research a topic from a web URL (or search the web) and save what you learn to the knowledge base
+learn_from_reddit — fetch and save hot/trending Reddit posts to the knowledge base
+learn_from_youtube — search YouTube for videos about a topic and save results
+recall — search your memory for what you've learned about a topic
+list_learned_topics — list everything you've learned so far, grouped by category
+forget_topic — remove a learned topic from your learning index
+
+=== PROJECT ANALYSIS ===
+project_analyze — deep-scan any project directory and return a complete overview (language, deps, structure, tests, conventions, etc.) — use this to quickly understand a new project
+
+=== USER PREFERENCES ===
+save_preference — remember a user preference or convention (e.g. 'always use pnpm', 'tabs not spaces')
+get_preferences — recall saved preferences, optionally filter by key or search term
+remove_preference — delete a saved preference
+
+=== DOCUMENTATION ===
+update_documentation — update README, startup guide, changelog with current tool count and project state after making changes
+get_documentation_status — check doc file status and tool count
+
+=== GAMING ===
+detect_gaming_setup — scan the system for installed gaming platforms and performance tools (Steam, Lutris, Heroic, Bottles, GameMode, MangoHud, Gamescope, GPU type, Proton versions)
+list_games — list all installed games from Steam, Lutris, and Heroic Games Launcher
+launch_game — launch a game by name with optional GameMode/Gamescope optimizations
+configure_gaming — configure gaming performance (GameMode on/off, GPU power profile, hybrid graphics mode)
+check_gaming_setup — comprehensive gaming health check with recommendations
+install_gaming_tool — get installation instructions for gaming tools (gamemode, mangohud, gamescope, etc.)
+
+=== UTILITY TOOLS ===
+generate_password — generate a strong random password and copy to clipboard
+pick_color — pick the color at your cursor position (returns hex + RGB)
+set_alarm — set an alarm for a specific time (repeats until cancelled)
+cancel_alarm — cancel a ringing alarm by label or ID
+list_alarms — list all pending alarms
+log_expense — log a spending entry with amount, category, description
+query_expenses — query your expense history by period and category
+export_expenses — export expense data as text table or CSV
+organize_directory — organize files in a folder into categorized subfolders (dry-run by default)
+
+=== LIFESTYLE ===
+track_package — track a package by carrier (ups/fedex/usps/dhl) and tracking number
+find_recipes — search for recipes by ingredients or dish name
+start_weather_alerts — start proactive severe weather alerts for a location
+stop_weather_alerts — stop the severe weather alerts
+
+=== PDF TOOLKIT ===
+pdf_merge — merge multiple PDF files into one
+pdf_split — split a PDF into individual page files
+pdf_extract_text — extract text from a PDF file
+
+=== GIT ASSISTANT ===
+git_status — show current git repo status with branch, changes, sync info
+git_commit — stage all changes and commit with a message (shows diff preview first)
+git_push — push committed changes to the remote repository
+git_pull — pull the latest changes from the remote repository
+git_log — show recent commit history
+
+=== SHELL ===
+run_shell — run any shell command (dangerous ones require confirmation)
+
+
+=== CONTEXT AWARENESS ===
+Before taking actions, use get_active_window to check what the user is doing:
+- If they're in Firefox: use browser tools (browser_navigate, browser_click_link, etc.)
+- If they're in the terminal: use system/file tools
+- If they're elsewhere (code editor, settings, etc.): use the appropriate tools
+
+For browser/media actions, always target Firefox directly using browser tools
+and media tools. The tools handle focusing Firefox automatically.
+
+=== SELF-IMPROVEMENT ===
+You can create your own tools, learn from the web, and you automatically learn from conversations!
+
+**Creating tools**: If you need a capability that doesn't exist as a tool, use 'create_tool' to write Python code for it. The code must import @tool from tools, define parameters, and handle errors. The tool becomes available immediately. Example:
+  create_tool(name="slugify", description="Convert text to URL slug", params={"text": {"type": "string", "description": "text to slugify"}}, required=["text"], code="from tools import tool\n\n@tool(name='slugify', description='Convert text to a URL-friendly slug', params={'text': {'type': 'string', 'description': 'The text to slugify'}}, required=['text'])\ndef slugify(text: str) -> str:\n    import re\n    slug = re.sub(r'[^a-z0-9]+', '-', text.lower()).strip('-')\n    return slug")
+
+**Learning from the web**: Use 'learn_from_web' to research topics and save what you learn. Use 'recall' to remember what you've learned before. This builds up over time — the more you learn, the smarter you get.
+
+**Auto-learning from conversations**: Every time we discuss tech, coding, AI, or any useful topic, I automatically save the key information to my knowledge base. I detect when you're asking a research question, find the relevant topics, extract the meaty content, and save it for later. Research queries and tool results (web searches, documentation, etc.) are prioritized. The same topic won't be saved too often to avoid clutter. To see what I've learned, use 'recall' or 'list_learned_topics'.
+
+**Important**: After creating a tool, use 'self_verify' to check that your code has no syntax errors and the tool functions properly.
+
+=== REASONING (think like a senior engineer) ===
+You have cognitive tools to help you work smarter:
+
+**think(problem, context)** — Before complex multi-step tasks, call think() to step back and reason. Fill in the structured framework: Analysis → Options → Plan → Verification. This catches mistakes early.
+
+**create_plan(name, steps)** — For tasks with 3+ steps, create a plan first. Track your progress with complete_step(). Use list_plans() to see what's left.
+
+**run_command(command, what_to_check)** — Lightweight basher for safe verification: check syntax, test one-liners, list packages, run git status. Blocks dangerous operations (rm, sudo, curl, eval). For risky commands, use run_shell.
+
+**self_review(files)** — After making changes, call self_review to check syntax, run tests, and get structured feedback. Fix any issues found.
+
+**self_verify(files)** — Quick syntax + test check after edits.
+
+**suggest_next_steps(context)** — When a task is done, suggest 2-3 specific followup actions the user could take next.
+
+**list_plans()** — View all active plans with completion status.
+
+Always use these tools in order: think → plan → implement → run_command/verify → review → suggest.
+
+=== WORKFLOW ===
+1. Check what window is active with get_active_window to understand context.
+2. For browser tasks: use browser tools (they focus Firefox automatically).
+3. For media (pause/play/skip): use media tools (they send keys to Firefox).
+4. Take a screenshot (take_screenshot) to see the screen before clicking UI elements.
+5. For math/translation/weather: use the calculate/translate/weather tools.
+6. For saving info: use take_note to save notes to the knowledge base.
+7. After completing actions, summarize concisely.
+8. If you need a tool that doesn't exist, create it with create_tool and test it with self_verify or self_review.
+9. To get smarter about a topic, use learn_from_web and recall later.
+10. For complex tasks: think() → create_plan() → implement → complete_step() → self_review() → suggest_next_steps().
+
+PERSONALITY: You are like JARVIS from Iron Man — confident, capable, loyal, and professional with a touch of warmth. You're direct and efficient, but not cold. You can be witty when appropriate. You address the user as "sir" or "boss" occasionally. Use varied responses instead of the same phrases.
 
 VISION: When you call take_screenshot, a vision model analyzes the image and returns a detailed text description of what is on screen. Use this to locate buttons, text fields, menus, and other UI elements before interacting with them.
 
-SAFETY: Destructive or potentially dangerous actions (deleting files, killing processes, risky shell commands, etc.) will be blocked pending user approval. Do not be surprised if such tool calls are rejected — wait for the user to confirm or provide an alternative safe approach.
-
-KNOWLEDGE BASE: There's a local knowledge base in the knowledge/ folder. The user can:
-  - Say "save that" after you give information to save it
-  - Say "search knowledge <topic>" to find stored info
-  - Say "list knowledge" to see what's available
-  - Say "read knowledge <topic>" to read stored info
-
-REDDIT: The user can ask about Reddit without opening a browser:
-  - "what's hot on Reddit" — front page
-  - "show r/python hot" — hot posts from a subreddit
-  - "top posts from r/programming" — top posts
-
-YOUTUBE: The user can check YouTube:
-  - "youtube trending" — trending videos
-  - Read YouTube info from the screen or browser
+SAFETY: Destructive or potentially dangerous actions (deleting files, killing processes, risky shell commands, etc.) will be blocked pending user approval. Do not be surprised if such tool calls are rejected.
 
 Always respond in a helpful, concise manner. If you need clarification, ask.
 """
@@ -141,8 +353,12 @@ class Agent:
         if conversation_path:
             self.conversation_path = Path(conversation_path)
         self.skills: dict = {}
+        self._automation_engine = None
+        self._proactive_monitor = None
         self._load_skills()
+        self._load_generated_tools()
         self._init_jarvis()
+        self._init_automation()
         self._init_conversation()
 
     # ------------------------------------------------------------------
@@ -159,6 +375,9 @@ class Agent:
         self._reminder_manager = None
         self._proactive_monitor = None
         self._notify_mirror = None
+
+        # Wire up tool references to engine instances
+        import tools.reminder_tools, tools.feature_toggle, tools.automation_tools
 
         # Quick answers
         if config.JARVIS_QUICK_ANSWERS:
@@ -186,8 +405,13 @@ class Agent:
                 self._proactive_monitor = ProactiveMonitor(alert_callback=self._jarvis_speak)
                 self._proactive_monitor.start()
                 logger.info("JARVIS: Proactive monitoring enabled")
+                tools.feature_toggle.set_proactive_monitor(self._proactive_monitor)
             except Exception as exc:
                 logger.debug("JARVIS proactive unavailable: %s", exc)
+
+        # Wire reminder manager into tool layer
+        if self._reminder_manager is not None:
+            tools.reminder_tools.set_manager(self._reminder_manager)
 
         # Notification mirror
         if config.JARVIS_NOTIFICATION_MIRROR:
@@ -198,6 +422,38 @@ class Agent:
                 logger.info("JARVIS: Notification mirror enabled")
             except Exception as exc:
                 logger.debug("JARVIS notification mirror unavailable: %s", exc)
+
+    # ------------------------------------------------------------------
+    # Automation engine initialization
+    # ------------------------------------------------------------------
+
+    def _init_automation(self) -> None:
+        """Initialize the automation engine."""
+        import tools.automation_tools, tools.feature_toggle
+        from brain.automation import AutomationEngine
+
+        # Callback that lets the automation engine execute tools
+        def _execute_tool(name: str, params: dict) -> str:
+            try:
+                # Safety check — block dangerous tools from automations
+                from safety.guard import SafetyGuard
+                if SafetyGuard.requires_confirmation(name, params):
+                    logger.warning("Automation blocked dangerous tool: %s(%s)", name, params)
+                    return f"Blocked: {name} requires confirmation and cannot run in automation"
+                func = tools.get_tool(name)
+                return func(**params)
+            except Exception as exc:
+                logger.error("Automation tool %s failed: %s", name, exc)
+                return f"Error: {exc}"
+
+        self._automation_engine = AutomationEngine(tool_executor=_execute_tool)
+
+        # Wire into tool layer
+        tools.automation_tools.set_engine(self._automation_engine)
+        tools.feature_toggle.set_automation_engine(self._automation_engine)
+
+        # Start the engine
+        self._automation_engine.start()
 
     def _save_last_response(self, title: str | None = None) -> str:
         """Save the agent's last response to the knowledge base."""
@@ -368,6 +624,15 @@ class Agent:
     # ------------------------------------------------------------------
     # Skill/plugin loading
     # ------------------------------------------------------------------
+
+    def _load_generated_tools(self) -> None:
+        """Load any previously created custom tools from tools/generated/."""
+        try:
+            loaded = tools.load_generated()
+            if loaded:
+                logger.info("Loaded %d generated tool(s): %s", len(loaded), ", ".join(loaded))
+        except Exception as exc:
+            logger.debug("No generated tools to load: %s", exc)
 
     def _load_skills(self) -> None:
         """Load skills from the skills directory."""
@@ -608,17 +873,7 @@ class Agent:
 
     def _ask_confirmation(self, tool_name: str, params: dict) -> bool:
         """Ask user for confirmation before dangerous actions."""
-        console.print(
-            f"\n[bold yellow]⚠️  The agent wants to run:[/bold yellow] [bold]{tool_name}[/bold]"
-        )
-        for k, v in params.items():
-            console.print(f"   {k}: {v!r}")
-        console.print("[dim]Type 'yes' to allow, anything else to block.[/dim]")
-        try:
-            answer = console.input("Allow? ").strip().lower()
-        except (EOFError, KeyboardInterrupt):
-            answer = "no"
-        return answer in ("yes", "y", "yeah", "yep")
+        return ask_confirmation(tool_name, params)
 
     def _execute_with_confirmation(self, name: str, args: dict) -> str:
         """Execute a tool, prompting for confirmation if needed."""
@@ -633,7 +888,7 @@ class Agent:
                 return f"Safety block: {exc}"
 
         func = tools.get_tool(name)
-        print_tool_call(name, args)
+        print_tool(name, args)
         try:
             return func(**args)
         except Exception as exc:
@@ -677,6 +932,8 @@ class Agent:
 
         all_tools = self._get_all_tools()
 
+        tool_results_content: list[str] = []
+
         for round_num in range(10):
             self._trim_history()
             message = self.client.chat(self.messages, tools=all_tools)
@@ -685,7 +942,17 @@ class Agent:
             tool_calls = message.get("tool_calls")
             if not tool_calls:
                 self._maybe_autosave()
-                return message.get("content", "")
+
+                # ── Auto-learn from this conversation turn ──
+                response_content = message.get("content", "")
+                try:
+                    learned = auto_learn_from_response(user_text, response_content, tool_results_content or None)
+                    if learned:
+                        logger.info("Conversation auto-learn: %s", learned)
+                except Exception as exc:
+                    logger.debug("Auto-learn skipped: %s", exc)
+
+                return response_content
 
             # Execute each tool call
             for tc in tool_calls:
@@ -707,23 +974,43 @@ class Agent:
                 # Try skill tools first, then built-in tools
                 skill_result = self._execute_skill_tool(name, **args)
                 if skill_result is not None:
+                    tool_result_str = skill_result
                     self.messages.append({
                         "role": "tool",
                         "tool_call_id": call_id,
                         "name": name,
-                        "content": skill_result,
+                        "content": tool_result_str,
                     })
                 else:
-                    result = self._execute_with_confirmation(name, args)
+                    tool_result_str = self._execute_with_confirmation(name, args)
                     self.messages.append({
                         "role": "tool",
                         "tool_call_id": call_id,
                         "name": name,
-                        "content": str(result),
+                        "content": str(tool_result_str),
                     })
 
+                tool_results_content.append(str(tool_result_str))
+
+                # ── Auto-learn from tool results ──
+                try:
+                    learned = auto_learn_from_tool(name, args, str(tool_result_str))
+                    if learned:
+                        logger.info("Tool auto-learn: %s", learned)
+                except Exception as exc:
+                    logger.debug("Tool auto-learn skipped: %s", exc)
+
         self._maybe_autosave()
-        return message.get("content", "")
+
+        response_content = message.get("content", "")
+        try:
+            learned = auto_learn_from_response(user_text, response_content, tool_results_content or None)
+            if learned:
+                logger.info("Conversation auto-learn: %s", learned)
+        except Exception as exc:
+            logger.debug("Auto-learn skipped: %s", exc)
+
+        return response_content
 
     def _run_input_loop(
         self,
@@ -780,15 +1067,15 @@ class Agent:
         text_thread.start()
 
         def _set_helpers(fb: bool):
-            """Return the appropriate print helpers for the current mode."""
+            """Return the appropriate print helpers for the current mode.
+
+            modern (default=True): clean, professional, minimal noise (default)
+            freebuff (fb=True): super minimal, just text
+            """
             if fb:
                 return fb_print_user, fb_print_agent, fb_print_info, fb_print_error
             else:
-                def _info(t: str) -> None:
-                    console.print(f"[dim]{t}[/dim]")
-                def _err(t: str) -> None:
-                    console.print(f"[bold red]Error: {t}[/bold red]")
-                return print_user_message, print_agent_message, _info, _err
+                return print_user, print_agent, print_status, print_error
 
         try:
             while True:
@@ -796,7 +1083,8 @@ class Agent:
                 p_user, p_agent, p_info, p_err = _set_helpers(freebuff)
 
                 if cmd_type == "quit":
-                    console.print("Goodbye!")
+                    print_divider()
+                    print_info("Goodbye!")
                     break
 
                 # While sleeping, only "wake up" voice commands are processed
@@ -813,7 +1101,7 @@ class Agent:
                 if cmd_type == "text":
                     lower = text.lower().strip()
                     if lower in ("quit", "exit", "q", "bye"):
-                        console.print("Goodbye!")
+                        print_info("Goodbye!")
                         break
                     if lower == "clear":
                         self._init_conversation()
@@ -898,7 +1186,7 @@ class Agent:
                             if freebuff:
                                 p_agent(result)
                             else:
-                                console.print(Panel(Text(result, style="cyan"), title="[bold]Screenshot[/bold]", border_style="cyan"))
+                                print_panel(result, title="Screenshot", style="cyan")
                             speak("Screenshot taken. " + " ".join(result.splitlines())[:200])
                         except Exception as exc:
                             p_err(f"Screenshot failed: {exc}")
@@ -913,7 +1201,7 @@ class Agent:
                             if freebuff:
                                 p_agent(info)
                             else:
-                                console.print(Panel(Text(info, style="cyan"), title="[bold]System Status[/bold]", border_style="cyan"))
+                                print_panel(info, title="System Status", style="cyan")
                             speak("System status: " + " ".join(info.splitlines()))
                         except Exception as exc:
                             p_err(f"Could not get system status: {exc}")
@@ -929,7 +1217,7 @@ class Agent:
                         if freebuff:
                             p_agent(direct_result)
                         else:
-                            console.print(Panel(Text(direct_result, style="cyan"), title="[bold]Action[/bold]", border_style="cyan"))
+                            print_panel(direct_result, title="Action", style="cyan")
                         speak(direct_result)
                         if detector is not None:
                             detector.resume()
@@ -946,12 +1234,9 @@ class Agent:
                     detector.pause()
 
                 self._set_status("thinking")
-                if freebuff:
-                    p_info("Thinking...")
-                    response = self._chat_with_tools(user_text)
-                else:
-                    with console.status("[cyan]Thinking...[/cyan]"):
-                        response = self._chat_with_tools(user_text)
+                show_thinking()
+                response = self._chat_with_tools(user_text)
+                hide_thinking()
                 p_agent(response)
                 self._set_status("speaking")
                 speak(response)
@@ -964,85 +1249,69 @@ class Agent:
                 detector.stop()
 
     def run_text_mode(self) -> None:
-        """Interactive text mode with optional wake-word voice input."""
-        console.print(
-            Panel(
-                Text(
-                    "AILIEN - Text Mode\n"
-                    "Type your command or 'quit' to exit.\n"
-                    "Say 'Hey AILIEN' at any time to speak a command.\n"
-                    "Type /freebuff for minimal inline style.\n"
-                    "Type /mute or /voice to toggle TTS feedback.",
-                    justify="center",
-                ),
-                border_style="cyan",
-            )
-        )
-        self._run_input_loop(start_freebuff=False, voice_enabled=True)
+        """Interactive text mode — pure keyboard input."""
+        print_header("AILIEN", " — Text Mode")
+        print_info("Type a command or 'quit' to exit.")
+        print_info("/freebuff - minimal inline style  ·  /mute - toggle TTS")
+        print_info("Need voice? Try: ./ailien --wake-word\n")
+        # voice_enabled=False = no wake word detector (saves CPU)
+        self._run_input_loop(start_freebuff=False, voice_enabled=False)
 
     def run_freebuff_mode(self) -> None:
-        """Minimal inline terminal mode (like freebuff) — no panels, just plain text."""
-        console.print("\n[bold]AILIEN Freebuff Mode[/bold] — minimal inline chat")
-        console.print("[dim]Type /fancy to switch back to rich panels. Say 'Hey AILIEN' for voice.[/dim]")
-        console.print("[dim]Type /mute or /voice to toggle TTS feedback.[/dim]\n")
-        self._run_input_loop(start_freebuff=True, voice_enabled=True)
+        """Minimal inline terminal mode — no styling, just plain text."""
+        print_header("AILIEN", " — Freebuff Mode")
+        print_info("Minimal inline chat. /mute to toggle TTS, /fancy for rich mode.\n")
+        # voice_enabled=False = no wake word detector (saves CPU)
+        self._run_input_loop(start_freebuff=True, voice_enabled=False)
 
     def run_voice_mode(self) -> None:
         """Voice-interactive mode."""
         self._ensure_transcriber()
         self._set_status("idle")
-        console.print(
-            Panel(
-                Text(
-                    "AILIEN - Voice Mode\n"
-                    "Speak after the beep. Silence for 2 seconds stops recording.\n"
-                    "Type 'q' and Enter to quit, 't' to switch to text input.",
-                    justify="center",
-                ),
-                border_style="cyan",
-            )
-        )
+        print_header("AILIEN", " — Voice Mode")
+        print_info("Speak after the beep. Silence stops recording.")
+        print_info("q - quit  ·  t - switch to text  ·  clear - reset\n")
 
         while True:
             try:
-                console.print("\n[dim]Press Enter to record, or type 'q' to quit / 't' for text:[/dim]")
-                prompt = console.input().strip().lower()
+                prompt = console.input("  [dim]Press Enter to record, or type q/t/clear:[/dim] ").strip().lower()
             except (EOFError, KeyboardInterrupt):
-                console.print("\nGoodbye!")
+                print_info("Goodbye!")
                 break
 
             if prompt == "q":
-                console.print("Goodbye!")
+                print_info("Goodbye!")
                 break
             if prompt == "t":
                 self.run_text_mode()
                 break
             if prompt == "clear":
                 self._init_conversation()
-                console.print("[dim]Conversation cleared.[/dim]")
+                print_status("Conversation cleared.")
                 continue
 
             # Record audio
-            console.print("[bold yellow]🎙️  Recording...[/bold yellow] (speak now)")
+            print_status("Recording... (speak now)")
             self._set_status("listening")
             audio = self.recorder.record_until_silence()
             self._set_status("thinking")
             if audio.size == 0:
-                console.print("[dim]No audio detected.[/dim]")
+                print_status("No audio detected.")
                 self._set_status("idle")
                 continue
 
-            console.print("[dim]Transcribing...[/dim]")
+            print_status("Transcribing...")
             text = self.transcriber.transcribe(audio)
             if not text:
-                console.print("[dim]Could not understand audio.[/dim]")
+                print_status("Could not understand audio.")
                 self._set_status("idle")
                 continue
 
-            print_user_message(text)
-            with console.status("[cyan]Thinking...[/cyan]"):
-                response = self._chat_with_tools(text)
-            print_agent_message(response)
+            print_user(text)
+            show_thinking()
+            response = self._chat_with_tools(text)
+            hide_thinking()
+            print_agent(response)
             self._set_status("speaking")
             speak(response)
             self._set_status("idle")
@@ -1060,26 +1329,10 @@ class Agent:
         except Exception:
             pass
         self._set_status("listening")
-        console.print(
-            Panel(
-                Text(
-                    "AILIEN - Wake Word Mode\n"
-                    "Say 'Hey Jarvis' followed by your command.\n"
-                    "Voice controls: 'go to sleep', 'wake up', 'text mode', 'screenshot', 'status', 'quit'\n"
-                    "The agent listens continuously in the background.\n"
-                    "Press Ctrl+C to quit.",
-                    justify="center",
-                ),
-                border_style="cyan",
-            )
-        )
-        console.print(
-            "[dim]Voice controls: volume up/down, mute, play/pause, next/previous, "
-            "screenshot, status, open/close apps, press enter/escape/arrows, "
-            "minimize/maximize/restore window, switch to <app>, "
-            "show clipboard, clear, go to sleep, wake up, quit, "
-            "mute voice / voice on / toggle voice[/dim]\n"
-        )
+        print_header("AILIEN", " — Wake Word Mode")
+        print_info("Say 'Hey Jarvis' followed by your command.")
+        print_info("sleep/wake/quit/screenshot/status/clear · volume/media/apps/keys")
+        print_info("Press Ctrl+C to quit.\n")
 
         command_queue: Queue[str] = Queue()
         _sleeping = False
@@ -1096,7 +1349,7 @@ class Agent:
             chunk_silence_duration=config.WAKE_WORD_CHUNK_SILENCE_DURATION,
         )
         detector.start()
-        console.print("[dim]Listening for wake word...[/dim]")
+        print_status("Listening for wake word...")
 
         def _handle_special_command(cmd: str) -> bool:
             """Check for voice control commands. Returns True if handled."""
@@ -1106,7 +1359,7 @@ class Agent:
             # Sleep commands (detector keeps running so it can hear 'wake up')
             if lower in ("stop listening", "pause listening", "go to sleep", "sleep"):
                 _sleeping = True
-                console.print("[dim]Going to sleep. Say 'Hey AILIEN, wake up' to resume.[/dim]")
+                print_status("Going to sleep. Say 'wake up' to resume.")
                 speak("Going to sleep. Say wake up to resume.")
                 return True
 
@@ -1114,15 +1367,15 @@ class Agent:
             if lower in ("start listening", "resume listening", "wake up", "wake"):
                 if _sleeping:
                     _sleeping = False
-                    console.print("[dim]Resumed listening.[/dim]")
+                    print_status("Resumed listening.")
                     speak("I'm listening again.")
                 else:
-                    console.print("[dim]Already awake.[/dim]")
+                    print_status("Already awake.")
                 return True
 
             # Switch to text mode
             if lower in ("text mode", "switch to text", "keyboard mode"):
-                console.print("[dim]Switching to text mode...[/dim]")
+                print_status("Switching to text mode...")
                 speak("Switching to text mode.")
                 self.run_text_mode()
                 return True
@@ -1130,7 +1383,7 @@ class Agent:
             # Quit commands
             if lower in ("quit", "exit", "goodbye", "shut down"):
                 _should_quit = True
-                console.print("[dim]Shutting down...[/dim]")
+                print_status("Shutting down...")
                 speak("Goodbye!")
                 return True
 
@@ -1138,10 +1391,10 @@ class Agent:
             if lower in ("status", "system status", "computer status"):
                 try:
                     info = tools.get_tool("system_info")()
-                    console.print(Panel(Text(info, style="cyan"), title="[bold]System Status[/bold]", border_style="cyan"))
+                    print_panel(info, title="System Status", style="cyan")
                     speak("System status: " + " ".join(info.splitlines()))
                 except Exception as exc:
-                    console.print(f"[dim]Could not get system status: {exc}[/dim]")
+                    print_error(f"System status failed: {exc}")
                     speak("Sorry, I couldn't get the system status.")
                 return True
 
@@ -1150,24 +1403,24 @@ class Agent:
                 try:
                     self._set_status("thinking")
                     result = tools.get_tool("take_screenshot")()
-                    console.print(Panel(Text(result, style="cyan"), title="[bold]Screenshot[/bold]", border_style="cyan"))
+                    print_panel(result, title="Screenshot", style="cyan")
                     speak("Screenshot taken. " + " ".join(result.splitlines())[:200])
                 except Exception as exc:
-                    console.print(f"[dim]Screenshot failed: {exc}[/dim]")
+                    print_error(f"Screenshot failed: {exc}")
                     speak("Sorry, I couldn't take a screenshot.")
                 return True
 
             # Clear conversation
             if lower in ("clear", "clear conversation", "reset"):
                 self._init_conversation()
-                console.print("[dim]Conversation cleared.[/dim]")
+                print_status("Conversation cleared.")
                 speak("Conversation cleared.")
                 return True
 
             # Direct tool commands (volume, media, apps, etc.)
             direct_result = self._try_direct_voice_command(cmd)
             if direct_result is not None:
-                console.print(Panel(Text(direct_result, style="cyan"), title="[bold]Action[/bold]", border_style="cyan"))
+                print_panel(direct_result, title="Action", style="cyan")
                 speak(direct_result)
                 return True
 
@@ -1185,10 +1438,9 @@ class Agent:
                     lower = command.lower().strip()
                     if lower in ("start listening", "resume listening", "wake up", "wake"):
                         _sleeping = False
-                        console.print("[dim]Resumed listening.[/dim]")
+                        print_status("Resumed listening.")
                         speak("I'm listening again.")
                     else:
-                        # Ignore all other commands while sleeping
                         pass
                     continue
 
@@ -1197,27 +1449,27 @@ class Agent:
 
                 if not command:
                     # Wake word said without a command — record a follow-up
-                    console.print("[bold yellow]🎙️  Wake word detected! Listening for command...[/bold yellow]")
+                    print_status("Wake word detected! Listening for command...")
                     try:
                         self._set_status("listening")
                         audio = self.recorder.record_until_silence()
                         self._set_status("thinking")
                     except RuntimeError:
-                        console.print("[bold red]🚫 Microphone unavailable.[/bold red]")
+                        print_error("Microphone unavailable.")
                         speak("Microphone unavailable.")
                         detector.resume()
                         self._set_status("listening")
                         continue
                     if audio.size == 0:
-                        console.print("[dim]No audio detected. Try speaking louder or closer to the mic.[/dim]")
+                        print_status("No audio detected. Try speaking louder.")
                         speak("I didn't hear anything. Please try again.")
                         detector.resume()
                         self._set_status("listening")
                         continue
-                    console.print("[dim]Transcribing...[/dim]")
+                    print_status("Transcribing...")
                     command = self.transcriber.transcribe(audio)
                     if not command:
-                        console.print("[dim]Could not understand audio. Try speaking more clearly.[/dim]")
+                        print_warning("Could not understand audio. Try again.")
                         speak("I didn't catch that. Please try again.")
                         detector.resume()
                         self._set_status("listening")
@@ -1227,24 +1479,25 @@ class Agent:
                 if _handle_special_command(command):
                     detector.resume()
                     if not _sleeping:
-                        console.print("[dim]Listening for wake word...[/dim]")
+                        print_status("Listening for wake word...")
                         self._set_status("listening")
                     continue
 
-                print_user_message(command)
-                with console.status("[cyan]Thinking...[/cyan]"):
-                    response = self._chat_with_tools(command)
-                print_agent_message(response)
+                print_user(command)
+                show_thinking()
+                response = self._chat_with_tools(command)
+                hide_thinking()
+                print_agent(response)
                 self._set_status("speaking")
                 speak(response)
-                console.print("[dim]Listening for wake word...[/dim]")
+                print_status("Listening for wake word...")
                 self._set_status("listening")
                 detector.resume()
         except KeyboardInterrupt:
-            console.print("\n[dim]Stopping wake word listener...[/dim]")
+            print_info("Stopping wake word listener...")
         finally:
             detector.stop()
-            console.print("Goodbye!")
+            print_info("Goodbye!")
 
     def run_window_mode(self, voice_window) -> None:
         """Voice control window mode.
@@ -1448,10 +1701,11 @@ class Agent:
     def run_single_command(self, command: str) -> None:
         """Execute a single command and exit."""
         self._set_status("thinking")
-        print_user_message(command)
-        with console.status("[cyan]Thinking...[/cyan]"):
-            response = self._chat_with_tools(command)
-        print_agent_message(response)
+        print_user(command)
+        show_thinking()
+        response = self._chat_with_tools(command)
+        hide_thinking()
+        print_agent(response)
         self._set_status("speaking")
         speak(response)
         self._set_status("idle")
@@ -1526,7 +1780,7 @@ def main() -> None:
         config.AGENT_VOICE_FEEDBACK = False
 
     if not args.no_overlay:
-        _print_typing_banner(console)
+        _print_banner()
 
     overlay = None
     voice_window = None
@@ -1549,16 +1803,18 @@ def main() -> None:
         except Exception as exc:
             logger.warning(f"Could not create GUI overlay: {exc}")
 
+    # Tray icon — only useful in daemon mode (background agent).
+    # In terminal modes it just adds GLib noise for no benefit.
     tray = None
-    try:
-        from gui.tray import TrayIcon
-        tray = TrayIcon(overlay=overlay)
-        # Pass VoiceWindow reference so the tray menu can open it
-        if voice_window:
-            tray.set_voice_window(voice_window)
-        tray.start()
-    except Exception as exc:
-        logger.warning(f"Could not create tray icon: {exc}")
+    if args.daemon:
+        try:
+            from gui.tray import TrayIcon
+            tray = TrayIcon(overlay=overlay)
+            if voice_window:
+                tray.set_voice_window(voice_window)
+            tray.start()
+        except Exception as exc:
+            logger.warning(f"Could not create tray icon: {exc}")
 
     agent = Agent(overlay=overlay, tray=tray)
 
@@ -1569,11 +1825,13 @@ def main() -> None:
             conv_path = config.CONVERSATIONS_DIR / conv_path
         if conv_path.exists():
             if agent.load_conversation(conv_path):
-                console.print(f"[dim]Loaded conversation from {conv_path}[/dim]")
+                print_info(f"Loaded conversation from {conv_path}")
         else:
-            console.print(f"[yellow]Conversation file not found: {conv_path}[/yellow]")
+            print_warning(f"Conversation file not found: {conv_path}")
 
-    notify("AILIEN", "Agent is running 👽")
+    # Desktop toast notifications — only in daemon mode (no terminal to see)
+    if args.daemon:
+        notify("AILIEN", "Agent is running 👽")
 
     def run_agent() -> None:
         try:
@@ -1593,7 +1851,11 @@ def main() -> None:
             else:
                 agent.run_text_mode()
         finally:
-            notify("AILIEN", "Agent stopped")
+            if args.daemon:
+                notify("AILIEN", "Agent stopped")
+            # Stop background services
+            if hasattr(agent, '_automation_engine') and agent._automation_engine:
+                agent._automation_engine.stop()
             # Stop wake word detector (releases microphone)
             if hasattr(agent, '_ww_detector') and agent._ww_detector:
                 try:

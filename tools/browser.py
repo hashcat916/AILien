@@ -1,6 +1,7 @@
 """Browser automation tools for opening URLs and controlling the active browser."""
 import html
 import re
+import subprocess
 import time
 import webbrowser
 from urllib.parse import urlparse
@@ -9,6 +10,69 @@ import pyautogui
 import requests
 
 from tools import tool
+
+
+# ---------------------------------------------------------------------------
+# Helpers: send keystrokes directly to the browser window so they work
+# even when the terminal (or another window) has focus.
+# ---------------------------------------------------------------------------
+
+def _browser_wid() -> str | None:
+    """Get the first Firefox window ID. Returns None if not found."""
+    try:
+        r = subprocess.run(
+            ["xdotool", "search", "--class", "firefox"],
+            capture_output=True, text=True, timeout=5,
+        )
+        wids = r.stdout.strip().split("\n")
+        return wids[0] if wids[0] else None
+    except Exception:
+        return None
+
+
+def _browser_key(*keys: str) -> bool:
+    """Send keystrokes to the Firefox window (doesn't steal focus)."""
+    wid = _browser_wid()
+    if not wid:
+        return False
+    try:
+        subprocess.run(
+            ["xdotool", "key", "--window", wid, *keys],
+            capture_output=True, timeout=5,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _browser_type(text: str) -> bool:
+    """Type text into the Firefox window."""
+    wid = _browser_wid()
+    if not wid:
+        return False
+    try:
+        subprocess.run(
+            ["xdotool", "type", "--window", wid, text],
+            capture_output=True, timeout=5,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _focus_browser() -> bool:
+    """Bring Firefox to the foreground and focus it."""
+    wid = _browser_wid()
+    if not wid:
+        return False
+    try:
+        subprocess.run(
+            ["xdotool", "windowactivate", "--sync", wid],
+            capture_output=True, timeout=5,
+        )
+        return True
+    except Exception:
+        return False
 
 
 @tool(
@@ -22,7 +86,6 @@ from tools import tool
 )
 def open_url(url: str, new_window: bool = False) -> str:
     """Open a URL in the default browser."""
-    # Basic validation
     parsed = urlparse(url)
     if not parsed.scheme:
         url = "https://" + url
@@ -35,7 +98,7 @@ def open_url(url: str, new_window: bool = False) -> str:
         if new_window:
             webbrowser.open(url, new=1)
         else:
-            webbrowser.open(url, new=2)  # new tab
+            webbrowser.open(url, new=2)
         return f"Opened {url} in default browser."
     except Exception as e:
         return f"Failed to open {url}: {e}"
@@ -43,14 +106,15 @@ def open_url(url: str, new_window: bool = False) -> str:
 
 @tool(
     name="browser_navigate",
-    description="Navigate the active browser window to a new URL. This focuses the browser address bar, types the URL, and presses Enter.",
+    description="Navigate the Firefox browser to a new URL. This focuses Firefox, types in the address bar, and presses Enter.",
     params={
         "url": {"type": "string", "description": "The URL to navigate to"},
     },
     required=["url"],
 )
 def browser_navigate(url: str) -> str:
-    """Navigate the active browser to a URL using keyboard shortcuts."""
+    """Navigate Firefox to a URL — focuses the browser first so
+    keyboard shortcuts land in the right window."""
     parsed = urlparse(url)
     if not parsed.scheme:
         url = "https://" + url
@@ -59,22 +123,25 @@ def browser_navigate(url: str) -> str:
     if parsed.scheme not in ("http", "https"):
         return f"Refused to navigate to non-HTTP URL: {url}"
 
-    try:
-        # Focus address bar (Ctrl+L on most browsers)
-        pyautogui.hotkey("ctrl", "l")
-        time.sleep(0.2)
+    # Focus Firefox (needed for address bar interaction)
+    if not _focus_browser():
+        try:
+            webbrowser.open(url, new=2)
+            return f"Opened {url} in default browser."
+        except Exception as e:
+            return f"Failed to open {url}: {e}"
 
-        # Select all and type new URL
-        pyautogui.hotkey("ctrl", "a")
-        time.sleep(0.1)
+    time.sleep(0.3)
 
-        pyautogui.typewrite(url, interval=0.01)
-        time.sleep(0.1)
-        pyautogui.press("enter")
-        time.sleep(0.5)
-        return f"Navigated to {url}"
-    except Exception as e:
-        return f"Failed to navigate to {url}: {e}"
+    # Ctrl+L → address bar, Ctrl+A → select all, type URL, Enter
+    _browser_key("ctrl+l")
+    time.sleep(0.2)
+    _browser_key("ctrl+a")
+    time.sleep(0.1)
+    _browser_type(url)
+    time.sleep(0.1)
+    _browser_key("Return")
+    return f"Navigated to {url}"
 
 
 @tool(
@@ -86,12 +153,17 @@ def browser_navigate(url: str) -> str:
     required=["text"],
 )
 def browser_find(text: str) -> str:
-    """Use Ctrl+F to find text on the current page."""
+    if _focus_browser():
+        _browser_key("ctrl+f")
+        time.sleep(0.2)
+        _browser_type(text)
+        time.sleep(0.1)
+        _browser_key("Escape")
+        return f"Finding '{text}' on current page."
+    # Fallback
     try:
         pyautogui.hotkey("ctrl", "f")
-        time.sleep(0.2)
         pyautogui.typewrite(text, interval=0.01)
-        time.sleep(0.1)
         pyautogui.press("esc")
         return f"Finding '{text}' on current page."
     except Exception as e:
@@ -100,12 +172,13 @@ def browser_find(text: str) -> str:
 
 @tool(
     name="browser_new_tab",
-    description="Open a new browser tab in the active browser window.",
+    description="Open a new browser tab in the active Firefox window.",
     params={},
     required=[],
 )
 def browser_new_tab() -> str:
-    """Open a new tab using Ctrl+T."""
+    if _browser_key("ctrl+t"):
+        return "Opened a new Firefox tab."
     try:
         pyautogui.hotkey("ctrl", "t")
         return "Opened a new browser tab."
@@ -120,7 +193,8 @@ def browser_new_tab() -> str:
     required=[],
 )
 def browser_close_tab() -> str:
-    """Close the current tab using Ctrl+W."""
+    if _browser_key("ctrl+w"):
+        return "Closed current tab."
     try:
         pyautogui.hotkey("ctrl", "w")
         return "Closed current browser tab."
@@ -135,7 +209,8 @@ def browser_close_tab() -> str:
     required=[],
 )
 def browser_go_back() -> str:
-    """Go back using Alt+Left."""
+    if _browser_key("alt+Left"):
+        return "Navigated back."
     try:
         pyautogui.hotkey("alt", "left")
         return "Navigated back."
@@ -150,7 +225,8 @@ def browser_go_back() -> str:
     required=[],
 )
 def browser_go_forward() -> str:
-    """Go forward using Alt+Right."""
+    if _browser_key("alt+Right"):
+        return "Navigated forward."
     try:
         pyautogui.hotkey("alt", "right")
         return "Navigated forward."
@@ -165,7 +241,8 @@ def browser_go_forward() -> str:
     required=[],
 )
 def browser_refresh() -> str:
-    """Refresh the page using F5."""
+    if _browser_key("F5"):
+        return "Page refreshed."
     try:
         pyautogui.press("f5")
         return "Page refreshed."
@@ -182,14 +259,18 @@ def browser_refresh() -> str:
     required=["direction"],
 )
 def browser_switch_tab(direction: str) -> str:
-    """Switch tabs using Ctrl+Tab or Ctrl+Shift+Tab."""
+    if direction == "next":
+        if _browser_key("ctrl+Tab"):
+            return "Switched to next tab."
+    else:
+        if _browser_key("ctrl+shift+Tab"):
+            return "Switched to previous tab."
     try:
         if direction == "next":
             pyautogui.hotkey("ctrl", "tab")
-            return "Switched to next tab."
         else:
             pyautogui.hotkey("ctrl", "shift", "tab")
-            return "Switched to previous tab."
+        return f"Switched to {direction} tab."
     except Exception as e:
         return f"Failed to switch tab: {e}"
 

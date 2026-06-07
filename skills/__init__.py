@@ -244,8 +244,13 @@ def get_skill_tools() -> list[ToolDef]:
     return tools
 
 
-def execute_skill_tool(name: str, **kwargs: Any) -> str:
-    """Execute a skill tool by its full name (``skill_<skill>_<tool>``)."""
+def execute_skill_tool(name: str, **kwargs: Any) -> str | None:
+    """Execute a skill tool by its full name (``skill_<skill>_<tool>``).
+
+    Returns the tool result as a string if found, or ``None`` if the name
+    doesn't match any skill tool — the caller should then fall through to
+    the built-in tool registry.
+    """
     for skill in _skills.values():
         for td in skill.get_tools():
             if td.name == name:
@@ -254,4 +259,4 @@ def execute_skill_tool(name: str, **kwargs: Any) -> str:
                     return str(result) if result is not None else "Done."
                 except Exception as exc:
                     return f"Skill error: {exc}"
-    return f"Skill tool not found: {name}"
+    return None  # Not a skill tool — caller falls through to built-in tools

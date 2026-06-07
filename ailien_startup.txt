@@ -1,97 +1,174 @@
 ╔══════════════════════════════════════════════════════════════════╗
 ║              AILIEN — Startup Commands                          ║
 ║              AI computer control assistant                      ║
+║              157 tools · voice & text · automation · self-improving    ║
 ╚══════════════════════════════════════════════════════════════════╝
 
-Project location: /home/alan/Desktop/my-project
-Launcher script: ./ailien
+Project: /home/alan/Desktop/my-project
+Launcher: ./ailien
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-QUICK START
+ALL MODES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  cd ~/Desktop/my-project
+  ./ailien --text          — Chat by typing
+  ./ailien --voice         — Push-to-talk voice
+  ./ailien --wake-word     — Always listening (say "hey jarvis")
+  ./ailien --gui            — GUI window with voice toggle
+  ./ailien --freebuff       — Minimal inline mode
+  ./ailien --daemon         — Background tray icon
+  ./ailien --serve          — HTTP API server
+  ./ailien -c "command"    — Single command, then exit
+  ./ailien --list-conversations   — List saved chats
+  ./ailien --conversation conv.json  — Load a conversation
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TEXT MODE — Type commands in an interactive chat
+TEXT MODE COMMANDS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  ./ailien --text
-
-  Commands while in text mode:
-    quit / exit / q     — Stop the agent
-    clear               — Reset conversation
-    /freebuff           — Minimal inline output style
-    /fancy              — Rich panel output style
-    /mute or /voice     — Toggle voice feedback
+  quit / exit / q        — Stop the agent
+  clear                  — Reset conversation
+  /freebuff              — Minimal inline output
+  /fancy                 — Rich panel output
+  /mute /voice           — Toggle TTS
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-WAKE WORD MODE — Say any activation phrase to wake the agent
+VOICE CONTROLS (wake-word mode)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ./ailien --wake-word
 
   Activation phrases (22 total):
-    hey ailien, ok ailien, ailien,
-    hey alien, ok alien, alien,
+    hey ailien, ok ailien, ailien, hey alien, ok alien, alien,
     hey jarvis, ok jarvis, jarvis,
-    hello, hey, hi,
-    hello there, hey there, hi there,
+    hello, hey, hi, hello there, hey there, hi there,
     what's up, sup, yo, howdy,
     good morning, good afternoon, good evening
 
-  Voice commands while listening:
+  Voice commands:
     "screenshot"       — Take a screenshot
     "status"           — Show system status
-    "go to sleep"      — Pause listening (say "wake up" to resume)
+    "go to sleep"      — Pause listening ("wake up" to resume)
     "quit"             — Shut down
     "volume up/down"   — Adjust volume
     "mute/unmute"      — Toggle audio
-    "play/pause/next"  — Media controls
+    "play/pause/next"  — Media controls (YouTube, etc.)
     "open firefox"     — Launch an app
     "focus terminal"   — Switch to a window
+    "minimize window"  — Window management
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DAEMON MODE — Background mode with system tray icon
+CREATE YOUR OWN TOOLS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  ./ailien --daemon
-
-  Runs in the background with tray icon (👽).
-  Say "hey jarvis" or any activation phrase to wake it.
-  Right-click the tray icon for settings and quit.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-OTHER MODES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  ./ailien --voice         — Push-to-talk voice mode
-  ./ailien --freebuff      — Minimal inline text mode
-  ./ailien --serve         — HTTP API server (for Open WebUI)
-
-  ./ailien -c "hello"                        — Single command
-  ./ailien -c "open firefox" --save-conversation result.json
-
-  ./ailien --list-conversations              — List saved chats
-  ./ailien --conversation conv.json          — Load a conversation
-
-  ./ailien --help                            — Full options
+  AILIEN can create new tools at runtime:
+    "create a tool that converts text to a URL slug"
+    "list created tools"
+    "remove the slugify tool"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DESKTOP SHORTCUTS (on Desktop)
+LEARN FROM THE WEB
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  AILIEN.desktop          → Daemon mode (double-click to launch)
-  AILIEN-Text.desktop     → Text chat mode (opens terminal)
-  AILIEN-Voice.desktop    → Voice mode (opens terminal)
-  AILIEN-Server.desktop   → HTTP API server (opens terminal)
+  AILIEN researches topics and remembers them:
+    "learn about Python async from the web"
+    "learn from reddit r/MachineLearning"
+    "recall what you know about async"
+    "list what you've learned"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REMINDERS & TIMERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  "remind me in 10 minutes to check the oven"
+  "set a timer for 3 minutes"
+  "list my reminders"
+  "cancel the timer"
+  "remind me every day at 9am to take vitamins" (via automation)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AUTOMATION (scheduled tasks)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  "check the weather every hour"
+  "tell me the system status every 30 minutes"
+  "list my automations"
+  "pause the weather check"
+  "pause all automations"
+  "turn off proactive monitoring"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TOOL CATEGORIES (157 total)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Agent Browser  find_missing_capability, install_capability, list_available_capabilities, search_capabilities
+  Apps        find_process, kill_process, launch_app, list_running_apps
+  Automation  add_automation, list_automations, pause_all_automations, pause_automation, remove_automation, resume_all_automations (+1 more)
+  Browser     browser_close_tab, browser_find, browser_go_back, browser_go_forward, browser_navigate, browser_new_tab (+4 more)
+  Browser Extras  browser_click_link, browser_fill_form, browser_get_info, browser_scroll, browser_search
+  Code        check_python_syntax, format_python, run_project_tests, self_verify
+  Course      build_course, find_tutorials, generate_book, list_courses, read_lesson
+  Create      create_tool, list_created_tools, remove_created_tool
+  Display     brightness_down, brightness_up, get_brightness, set_brightness
+  Documentation  get_documentation_status, update_documentation
+  Domain      check_domain, domain_whois, suggest_domains
+  Email       compose_email
+  Feature Toggle  get_feature_status, toggle_automation, toggle_proactive_monitoring
+  Files       find_file, list_directory, open_file, read_file
+  Gaming      check_gaming_setup, configure_gaming, detect_gaming_setup, install_gaming_tool, launch_game, list_games
+  Keyboard    clipboard_get, clipboard_set, press_key, type_text
+  Learn       forget_topic, learn_from_reddit, learn_from_web, learn_from_youtube, list_learned_topics, recall
+  Lifestyle   find_recipes, git_commit, git_log, git_pull, git_push, git_status (+6 more)
+  Media       list_media, play_media
+  Mouse       get_mouse_position, mouse_click, mouse_drag, mouse_move, mouse_scroll
+  Notes       delete_note, list_notes, read_note, search_notes, take_note
+  Productivity  calculate, clipboard_history, translate, weather
+  Project     get_preferences, project_analyze, remove_preference, save_preference
+  Reasoning   complete_step, create_plan, list_plans, run_command, self_review, suggest_next_steps (+1 more)
+  Reminder    cancel_reminder, list_reminders, set_reminder, set_timer
+  Screen      read_screen_text, take_screenshot
+  Server      check_port, dns_lookup, http_check, ping_host, trace_route
+  Shell       run_shell
+  System      focus_window, get_active_window, maximize_window, media_next, media_play_pause, media_previous (+8 more)
+  Torrent     add_torrent, torrent_pause, torrent_resume, torrent_status
+  Utility     cancel_alarm, export_expenses, generate_password, list_alarms, log_expense, organize_directory (+3 more)
+  Website     list_servers, scaffold_website, serve_directory, stop_server
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+NETWORK & DOMAIN TOOLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ping_host     — Ping any host
+  dns_lookup    — DNS records (A, MX, NS, TXT)
+  check_port    — Check if a port is open
+  trace_route   — Trace network path
+  http_check    — Check if HTTP server is responding
+  check_domain  — Check domain availability
+  domain_whois  — Get WHOIS registration details
+  suggest_domains — Suggest domain name variations
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WEBSITE TOOLS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  serve_directory   — Start a local HTTP server
+  stop_server       — Stop a running server
+  list_servers      — List active servers
+  scaffold_website  — Create HTML/CSS/JS scaffold
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DESKTOP SHORTCUTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  AILIEN.desktop           → Daemon mode (double-click to launch)
+  AILIEN-Text.desktop      → Text chat (opens terminal)
+  AILIEN-Voice.desktop     → Voice mode (opens terminal)
+  AILIEN-Server.desktop    → HTTP API (opens terminal)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CUSTOM ACTIVATION PHRASES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  Add to ~/Desktop/my-project/.env:
-    AGENT_WAKE_WORDS=hey alan, what's up alan, hello, alan
+  Add to .env:
+    AGENT_WAKE_WORDS=hey alan, what's up alan, hello alan
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 RE-RUN SETUP (if needed)
