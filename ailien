@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# AILIEN launcher — easy command-line startup
+# Usage: ./ailien [args]
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Use the virtual environment's Python directly for reliability
+if [ -f "$SCRIPT_DIR/.venv/bin/python3" ]; then
+    exec "$SCRIPT_DIR/.venv/bin/python3" "$SCRIPT_DIR/main.py" "$@"
+else
+    # Fallback: try system Python
+    exec python3 "$SCRIPT_DIR/main.py" "$@"
+fi

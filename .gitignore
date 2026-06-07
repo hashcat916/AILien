@@ -1,0 +1,46 @@
+# Environment variables
+.env
+
+# Cache & generated data
+.cache/
+conversations/
+
+# Backup / archive
+local_agent_backup/
+
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+chat_log.txt
+Chat_log2.txt
+
+# Runtime generated image assets (screenshots, generated cache)
+*.png
+!icons/*.png
+!wake_words/*.png
+
+# Porcupine wake word models (regenerated per-account from Picovoice Console)
+wake_words/*.ppn
+!wake_words/*.md
+!wake_words/.gitkeep
