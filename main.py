@@ -136,6 +136,11 @@ get_webpage_text — fetch a URL and extract readable text (no browser needed)
 play_media — search for and play a local movie, music file, or video by name
 list_media — list available media files in your Music, Videos, Movies folders
 
+=== YOUTUBE ===
+youtube_search — search YouTube for videos matching a query (titles, channels, durations, links)
+play_youtube — search YouTube and play the best matching video (plays locally or opens in browser)
+youtube_trending — show currently trending videos on YouTube
+
 === DISPLAY ===
 set_brightness — set screen brightness to a percentage (0–100)
 brightness_up — increase brightness

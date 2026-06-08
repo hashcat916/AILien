@@ -1,11 +1,14 @@
-"""Local media playback tools — find and play movies/music from the PC."""
+"""Media playback tools — local files and YouTube search/play."""
 
+import logging
 import shutil
 import subprocess
 import time
 from pathlib import Path
 
 from tools import tool
+
+logger = logging.getLogger("agent")
 
 # Common media directories to search
 MEDIA_DIRS = [
@@ -216,3 +219,185 @@ def list_media(directory: str = "all", max_results: int = 30) -> str:
         return f"No media files found in {', '.join(str(d) for d in dirs_to_check if d.is_dir())}."
 
     return header + "\n" + "\n".join(results)
+
+
+# ---------------------------------------------------------------------------
+# YouTube search & playback
+# ---------------------------------------------------------------------------
+
+
+@tool(
+    name="youtube_search",
+    description="Search YouTube for videos matching a query. Returns titles, channels, durations, and links. Use this before play_youtube to find what you want to watch.",
+    params={
+        "query": {"type": "string", "description": "What to search for — song name, topic, channel, etc."},
+    },
+    required=["query"],
+)
+def youtube_search(query: str) -> str:
+    """Search YouTube and return formatted results."""
+    try:
+        from brain.youtube import search as yt_search
+        return yt_search(query)
+    except Exception as exc:
+        return f"YouTube search failed: {exc}"
+
+
+def _search_youtube_videos(query: str, max_results: int = 5) -> list[dict]:
+    """Get structured video results from YouTube search.
+
+    Returns list of dicts with keys: title, url, video_id, duration, views, channel.
+    """
+    try:
+        from brain.youtube import _extract_with_ytdlp
+        videos = _extract_with_ytdlp(f"ytsearch{max_results}:{query}")
+        return videos
+    except Exception:
+        pass
+
+    # Ultra-fallback: direct yt-dlp
+    try:
+        from yt_dlp import YoutubeDL
+        from brain.youtube import _parse_duration as dur, _format_views as vws
+        with YoutubeDL({
+            "quiet": True, "no_warnings": True,
+            "extract_flat": True, "skip_download": True,
+            "default_search": "ytsearch",
+        }) as ydl:
+            info = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
+        entries = info.get("entries", []) if info else []
+        results = []
+        for entry in entries[:max_results]:
+            if entry and entry.get("id"):
+                results.append({
+                    "title": entry.get("title", "Unknown"),
+                    "url": f"https://youtube.com/watch?v={entry['id']}",
+                    "video_id": entry["id"],
+                    "duration": dur(entry.get("duration")),
+                    "views": vws(entry.get("view_count")),
+                    "channel": entry.get("channel", entry.get("uploader", "")),
+                })
+        return results
+    except Exception:
+        return []
+
+
+def _play_yt_with_player(video_url: str, title: str) -> str | None:
+    """Try to play a YouTube video with a local player.
+
+    Uses yt-dlp to extract the streaming URL, then plays with ffplay.
+    Returns None if no player is available.
+    """
+    try:
+        from yt_dlp import YoutubeDL
+
+        # Get the streaming URL
+        with YoutubeDL({
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+            "format": "best[height<=720]/best",  # Cap at 720p for faster start
+        }) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+
+        # Get the direct media URL
+        stream_url = info.get("url")
+        if not stream_url:
+            return None
+
+        # Try ffplay first
+        ffplay = shutil.which("ffplay")
+        if ffplay:
+            subprocess.Popen(
+                ["nohup", ffplay, "-autoexit", "-window_title", title[:50], stream_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return f"ffplay"
+
+        # Try celluloid
+        celluloid = shutil.which("celluloid")
+        if celluloid:
+            subprocess.Popen(
+                [celluloid, stream_url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return f"celluloid"
+
+    except Exception as exc:
+        logger.debug("YouTube play failed: %s", exc)
+
+    return None
+
+
+@tool(
+    name="play_youtube",
+    description="Search YouTube for a video and play it. Automatically picks the best match and plays it. If a local player (ffplay) isn't available, it opens in your browser.",
+    params={
+        "query": {"type": "string", "description": "What to search for and play — song name, video title, topic, etc."},
+        "player": {
+            "type": "string",
+            "description": "How to play: 'auto' (try local player first, then browser), 'browser' (always open in browser)",
+            "default": "auto",
+            "enum": ["auto", "browser"],
+        },
+    },
+    required=["query"],
+)
+def play_youtube(query: str, player: str = "auto") -> str:
+    """Search YouTube and play the best matching video."""
+    import webbrowser
+
+    if not query.strip():
+        return "Please provide a search term."
+
+    # Search for videos
+    videos = _search_youtube_videos(query)
+    if not videos:
+        return f"No YouTube results for '{query}'. Try a different search."
+
+    # Pick the best match
+    target = videos[0]
+    title = target["title"]
+    video_url = target["url"]
+    channel = target.get("channel", "")
+    duration = target.get("duration", "")
+
+    result_parts = [f"🎬 Now playing: {title}"]
+    if channel:
+        result_parts.append(f"   📺 {channel}")
+    if duration:
+        result_parts.append(f"   ⏱ {duration}")
+
+    if player == "browser":
+        webbrowser.open(video_url)
+        result_parts.append(f"   🌐 Opened in browser")
+        return "\n".join(result_parts)
+
+    # Try local player first
+    player_name = _play_yt_with_player(video_url, title)
+    if player_name:
+        result_parts.append(f"   ▶️ Playing with {player_name}")
+        return "\n".join(result_parts)
+
+    # Fallback: open in browser
+    webbrowser.open(video_url)
+    result_parts.append(f"   🌐 No local player found — opened in browser")
+    result_parts.append(f"   💡 Install mpv for smoother YouTube playback: sudo apt install mpv")
+    return "\n".join(result_parts)
+
+
+@tool(
+    name="youtube_trending",
+    description="Show currently trending videos on YouTube.",
+    params={},
+    required=[],
+)
+def youtube_trending() -> str:
+    """Get trending YouTube videos."""
+    try:
+        from brain.youtube import trending as yt_trending
+        return yt_trending()
+    except Exception as exc:
+        return f"Failed to fetch trending: {exc}"
